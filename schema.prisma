@@ -1,0 +1,229 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums должны соответствовать типам, созданным в базе данных
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum Rarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EXCLUSIVE
+}
+
+enum Condition {
+  MINT
+  TLC
+  GOOD
+  NIB
+}
+
+enum AdStatus {
+  ACTIVE
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ArticleCategory {
+  CARE_STORAGE
+  HISTORY_NEWS
+  RULES_POLITICS
+  ADVICE_BEGINNERS
+}
+
+enum Region {
+  USA
+  EU
+  CIS
+  ASIA
+  OTHER
+}
+
+enum MoldType {
+  CAT
+  DOG
+  RODENT
+  CATTLE
+  KANGAROO
+  BEAR
+  OTHER
+}
+
+enum Series {
+  G1
+  G2
+  G3
+  G4
+  G5
+  G6
+  G7
+  OTHER
+}
+
+// Модели БД - обновлены по структуре вашей базы данных
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  username      String
+  password      String
+  role          UserRole      @default(USER)
+  age           Int?
+  parentEmail   String?
+  isVerified    Boolean       @default(false)
+  region        Region?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Связи
+  profile       Profile?
+  wishlistItems WishlistItem[]
+  tradeAds      TradeAd[]
+  messagesSent  Message[]     @relation("Sender")
+  messagesReceived Message[]  @relation("Receiver")
+  ratingsGiven  Rating[]      @relation("Rater")
+  ratingsReceived Rating[]    @relation("RatedUser")
+  tradeOffers   TradeOffer[]
+  articles      Article[]
+}
+
+model Profile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  avatar      String?   @default("/assets/default-avatar.png")
+  bio         String?
+  location    String?
+  rating      Float     @default(0)
+  status      String    @default("Beginner")
+  achievements String[]
+  tradeCount  Int       @default(0)
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Figurine {
+  id          String    @id @default(uuid())
+  number      String    @unique
+  name        String
+  mold        MoldType
+  series      Series
+  rarity      Rarity
+  year        Int
+  description String?
+  imageUrl    String
+  verified    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  
+  // Связи
+  wishlistItems WishlistItem[]
+  tradeAds      TradeAd[]
+}
+
+model WishlistItem {
+  id         String    @id @default(uuid())
+  userId     String
+  figurineId String
+  note       String?
+  priority   Int?      @default(1)
+  addedAt    DateTime  @default(now())
+  
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  figurine   Figurine  @relation(fields: [figurineId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, figurineId])
+}
+
+model TradeAd {
+  id          String    @id @default(uuid())
+  userId      String
+  figurineId  String
+  title       String
+  description String
+  condition   Condition
+  location    String
+  status      AdStatus  @default(ACTIVE)
+  photo       String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  figurine   Figurine    @relation(fields: [figurineId], references: [id], onDelete: Cascade)
+  offers     TradeOffer[]
+  messages   Message[]
+  ratings    Rating[]
+}
+
+model TradeOffer {
+  id          String      @id @default(uuid())
+  tradeAdId   String
+  userId      String
+  message     String
+  status      OfferStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  
+  tradeAd     TradeAd @relation(fields: [tradeAdId], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  senderId    String
+  receiverId  String
+  tradeId     String?
+  content     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  
+  sender      User      @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User      @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  trade       TradeAd?  @relation(fields: [tradeId], references: [id], onDelete: SetNull)
+}
+
+model Rating {
+  id          String    @id @default(uuid())
+  userId      String    // Кого оценивают
+  raterId     String    // Кто оценивает
+  tradeId     String
+  score       Int
+  comment     String?
+  createdAt   DateTime  @default(now())
+  
+  ratedUser   User      @relation("RatedUser", fields: [userId], references: [id], onDelete: Cascade)
+  rater       User      @relation("Rater", fields: [raterId], references: [id], onDelete: Cascade)
+  trade       TradeAd   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@map("Rating")
+}
+
+model Article {
+  id          String          @id @default(uuid())
+  title       String
+  content     String
+  category    ArticleCategory
+  authorId    String
+  imageUrl    String?
+  tags        String[]
+  published   Boolean         @default(true)
+  views       Int             @default(0)
+  createdAt   DateTime        @default(now())
+  
+  author      User            @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("Article")
+}

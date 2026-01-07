@@ -1,0 +1,1 @@
+export const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:nicole6660903B@localhost:5432/collector_mingle";
