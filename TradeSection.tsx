@@ -1,23 +1,68 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardMedia,
-} from '@mui/material';
+import React, { useState, useEffect, useRef } from 'react';
+import { Box, Container, Typography, Grid, Card, CardMedia } from '@mui/material';
 
 const TradeSection: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const totalSlides = 7;
-  const slidesPerView = 3;
+  const [isPaused, setIsPaused] = useState(false);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef<NodeJS.Timeout>();
 
-  const slides = Array.from({ length: totalSlides }, (_, i) => ({
-    id: i,
-    image: `/assets/ad${i + 1}.png`,
-    title: `Trade Item ${i + 1}`,
-  }));
+  // Примерные данные для слайдов - замените на реальные
+  const slides = [
+    { id: 1, image: '/assets/ad1.png', title: 'Wolf / Persian Cat' },
+    { id: 2, image: '/assets/ad2.png', title: 'Blue Sky Poodle' },
+    { id: 3, image: '/assets/ad3.png', title: 'Mint Polar Bear' },
+    { id: 4, image: '/assets/ad4.png', title: 'Australian Edition Dachshund' },
+    { id: 5, image: '/assets/ad5.png', title: 'Gentle Maltese' },
+    { id: 6, image: '/assets/ad6.png', title: 'Stripped Kitty Dressed' },
+    { id: 7, image: '/assets/ad7.png', title: 'Mystery Figure' },
+  ];
+
+  // Рассчитываем сколько слайдов показывать в зависимости от размера экрана
+  const getSlidesPerView = () => {
+    if (typeof window === 'undefined') return 2.5;
+    if (window.innerWidth < 600) return 1.2; // На мобильных показываем 1.2 слайда
+    if (window.innerWidth < 960) return 2; // На планшетах показываем 2 слайда
+    return 2.5; // На десктопе показываем 2.5 слайда
+  };
+
+  const [slidesPerView, setSlidesPerView] = useState(getSlidesPerView());
+
+  // Обновляем slidesPerView при изменении размера окна
+  useEffect(() => {
+    const handleResize = () => {
+      setSlidesPerView(getSlidesPerView());
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Автоматическая прокрутка
+  useEffect(() => {
+    if (!isPaused && slides.length > slidesPerView) {
+      autoScrollRef.current = setInterval(() => {
+        setCurrentSlide(prev => {
+          if (prev >= slides.length - Math.floor(slidesPerView)) {
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 4000); // Прокрутка каждые 4 секунды
+    }
+
+    return () => {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [isPaused, slides.length, slidesPerView]);
+
+  const handleMouseEnter = () => setIsPaused(true);
+  const handleMouseLeave = () => setIsPaused(false);
+
+  // Рассчитываем ширину слайда в процентах
+  const slideWidth = 100 / slidesPerView;
 
   return (
     <Container 
@@ -28,7 +73,6 @@ const TradeSection: React.FC = () => {
     >
       <Grid container spacing={4} alignItems="center">
         {/* Left side - Text */}
-                  {/* @ts-ignore */}
         <Grid item xs={12} md={4}>
           <Box sx={{ pl: { md: 6 } }}>
             <Typography
@@ -58,7 +102,6 @@ const TradeSection: React.FC = () => {
         </Grid>
 
         {/* Arrow in middle */}
-                  {/* @ts-ignore */}
         <Grid item xs={12} md={1} sx={{ display: { xs: 'none', md: 'block' } }}>
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Box
@@ -71,31 +114,64 @@ const TradeSection: React.FC = () => {
         </Grid>
 
         {/* Right side - Slider */}
-                  {/* @ts-ignore */}
         <Grid item xs={12} md={7}>
-          <Box sx={{ position: 'relative', pr: { md: 6 } }}>
+          <Box 
+            sx={{ 
+              position: 'relative',
+              pr: { md: 6 },
+              overflow: 'hidden',
+              // Фиксируем высоту контейнера слайдера для десктопа
+              height: { xs: 'auto', md: '460px' },
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
             {/* Slides Container */}
             <Box
+              ref={sliderRef}
               sx={{
                 display: 'flex',
-                gap: 3,
-                overflow: 'hidden',
-                pb: 4,
+                transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: `translateX(-${currentSlide * slideWidth}%)`,
+                willChange: 'transform',
+                // Для десктопа фиксируем высоту контейнера слайдов
+                alignItems: 'center',
+                height: { xs: 'auto', md: '300px' },
               }}
             >
-              {slides
-                .slice(currentSlide, currentSlide + slidesPerView)
-                .map((slide) => (
+              {slides.map((slide, index) => (
+                <Box
+                  key={slide.id}
+                  sx={{
+                    flex: `0 0 ${slideWidth}%`,
+                    padding: { xs: '4px', md: '8px' },
+                    transition: 'all 0.3s ease',
+                    // Для десктопа - фиксированная высота 300px
+                    height: { xs: 'auto', md: '300px' },
+                  }}
+                >
                   <Card
-                    key={slide.id}
                     sx={{
-                      flex: '0 0 calc(33.333% - 16px)',
-                      borderRadius: '46px',
+                      borderRadius: { xs: '24px', md: '46px' },
                       overflow: 'hidden',
-                      transition: 'transform 0.3s ease',
-                      '&:hover': {
-                        transform: 'scale(1.05)',
-                      },
+                      // Фиксированные размеры для десктопа
+                      height: { xs: '220px', sm: '280px', md: '300px' },
+                      width: { xs: '100%', md: '300px' }, // Фиксируем ширину на десктопе
+                      position: 'relative',
+                      boxShadow: index >= currentSlide && index < currentSlide + slidesPerView 
+                        ? '0 8px 24px rgba(0, 0, 0, 0.15)' 
+                        : '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      transform: index >= currentSlide && index < currentSlide + slidesPerView 
+                        ? 'scale(1)' 
+                        : 'scale(0.95)',
+                      opacity: index >= currentSlide && index < currentSlide + slidesPerView 
+                        ? 1 
+                        : 0.7,
+                      // Центрируем слайд внутри его контейнера
+                      margin: '0 auto',
                     }}
                   >
                     <CardMedia
@@ -103,51 +179,81 @@ const TradeSection: React.FC = () => {
                       image={slide.image}
                       alt={slide.title}
                       sx={{
-                        height: { xs: '200px', sm: '250px', md: '300px' },
                         width: '100%',
+                        height: '100%',
                         objectFit: 'cover',
                       }}
                     />
+                    
+                    {/* Наложение с названием фигурки */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        padding: { xs: '12px', md: '16px' },
+                        color: 'white',
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: '0.875rem', md: '1rem' },
+                          fontFamily: '"McLaren", cursive',
+                          fontWeight: 400,
+                          textAlign: 'center',
+                        }}
+                      >
+                      </Typography>
+                    </Box>
                   </Card>
-                ))}
+                </Box>
+              ))}
             </Box>
 
-            {/* Dots Indicator */}
+            {/* Dots Indicator (как в макете - большие круги с маленькими точками) */}
             <Box
               sx={{
                 display: 'flex',
                 justifyContent: 'center',
-                gap: 2,
-                mt: 2,
+                gap: 1,
+                mt: 4,
               }}
             >
-              {Array.from({ length: totalSlides - slidesPerView + 1 }).map(
-                (_, index) => (
+              {slides.map((_, index) => (
+                <Box
+                  key={index}
+                  onClick={() => {
+                    setCurrentSlide(index);
+                    setIsPaused(true);
+                    setTimeout(() => setIsPaused(false), 3000);
+                  }}
+                  sx={{
+                    width: { xs: '36px', md: '48px' },
+                    height: { xs: '36px', md: '48px' },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.1)',
+                    },
+                  }}
+                >
                   <Box
-                    key={index}
-                    onClick={() => setCurrentSlide(index)}
                     sx={{
-                      width: '48px',
-                      height: '48px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
+                      width: { xs: '6px', md: '10px' },
+                      height: { xs: '6px', md: '10px' },
+                      borderRadius: '50%',
+                      backgroundColor: '#560D30',
+                      opacity: index === currentSlide ? 1 : 0.5,
+                      transition: 'opacity 0.3s ease, transform 0.3s ease',
+                      transform: index === currentSlide ? 'scale(1.2)' : 'scale(1)',
                     }}
-                  >
-                    <Box
-                      sx={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        backgroundColor: '#560D30',
-                        opacity: index === currentSlide ? 1 : 0.5,
-                        transition: 'opacity 0.3s ease',
-                      }}
-                    />
-                  </Box>
-                )
-              )}
+                  />
+                </Box>
+              ))}
             </Box>
           </Box>
         </Grid>

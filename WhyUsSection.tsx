@@ -6,22 +6,18 @@ const WhyUsSection: React.FC = () => {
     {
       icon: '/assets/why-us-1.svg',
       title: 'Safe Trade',
-      description: 'Secure trading with verified users and feedback system',
     },
     {
       icon: '/assets/why-us-2.svg',
       title: 'Easy Search',
-      description: 'Powerful filters to find exactly what you need',
     },
     {
       icon: '/assets/why-us-3.svg',
       title: 'Friendly Community',
-      description: 'Connect with fellow collectors worldwide',
     },
     {
       icon: '/assets/why-us-4.svg',
       title: 'Wishlist Magic',
-      description: 'Track your dream items and get notified',
     },
   ];
 
@@ -118,7 +114,6 @@ const WhyUsSection: React.FC = () => {
                   fontFamily: '"Nobile", sans-serif',
                 }}
               >
-                {feature.description}
               </Typography>
             </CardContent>
           </Card>

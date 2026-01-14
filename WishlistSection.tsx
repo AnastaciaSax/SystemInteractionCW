@@ -31,41 +31,6 @@ const WishlistSection: React.FC = () => {
                 zIndex: 1,
               }}
             />
-            
-            {/* Image 1 */}
-            <Box
-              component="img"
-              src="/assets/ad1.png"
-              alt="Figurine 1"
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '218px',
-                height: '218px',
-                borderRadius: '30px',
-                objectFit: 'cover',
-                zIndex: 2,
-              }}
-            />
-            
-            {/* Image 2 */}
-            <Box
-              component="img"
-              src="/assets/ad2.png"
-              alt="Figurine 2"
-              sx={{
-                position: 'absolute',
-                top: 115,
-                left: 189,
-                width: '223px',
-                height: '224px',
-                borderRadius: '30px',
-                objectFit: 'cover',
-                transform: 'rotate(-10deg)',
-                zIndex: 2,
-              }}
-            />
           </Box>
         </Grid>
 
@@ -153,41 +118,6 @@ const WishlistSection: React.FC = () => {
                 width: '100%',
                 height: 'auto',
                 zIndex: 1,
-              }}
-            />
-            
-            {/* Image 3 */}
-            <Box
-              component="img"
-              src="/assets/ad3.png"
-              alt="Figurine 3"
-              sx={{
-                position: 'absolute',
-                top: 13,
-                left: 35,
-                width: '169px',
-                height: '169px',
-                borderRadius: '30px',
-                objectFit: 'cover',
-                zIndex: 2,
-              }}
-            />
-            
-            {/* Image 4 */}
-            <Box
-              component="img"
-              src="/assets/ad4.png"
-              alt="Figurine 4"
-              sx={{
-                position: 'absolute',
-                top: 88,
-                left: 213,
-                width: '223px',
-                height: '224px',
-                borderRadius: '30px',
-                objectFit: 'cover',
-                transform: 'rotate(3deg)',
-                zIndex: 2,
               }}
             />
           </Box>

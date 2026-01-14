@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 const HeroSection: React.FC = () => {
@@ -7,9 +7,10 @@ const HeroSection: React.FC = () => {
     <Box
       sx={{
         position: 'relative',
-        height: { xs: '400px', md: '545px' },
-        overflow: 'hidden',
+        height: { xs: '500px', md: '545px' },
         width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {/* Фоновое изображение */}
@@ -28,84 +29,111 @@ const HeroSection: React.FC = () => {
         }}
       />
       
-      {/* Темный оверлей для лучшей читаемости текста */}
+      {/* Контейнер для контента - растягиваем на всю высоту */}
       <Box
         sx={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '60%',
-          background: 'linear-gradient(to top, rgba(86, 13, 48, 0.7) 0%, transparent 100%)',
-          zIndex: 1,
-        }}
-      />
-      
-      <Container
-        sx={{
-          position: 'relative',
-          height: '100%',
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          textAlign: 'center',
-          zIndex: 2,
-          color: 'white',
-          px: { xs: 2, md: 4 },
-          maxWidth: '1280px !important',
+          justifyContent: 'flex-end',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
-        <Typography
-          variant="h1"
+        {/* Подложка - увеличиваем ширину для десктопа */}
+        <Box
           sx={{
-            fontSize: { xs: '2.5rem', sm: '3.5rem', md: '4rem', lg: '5rem' },
-            fontFamily: '"Rammetto One", cursive',
-            fontWeight: 400,
-            mb: 3,
-            textShadow: '0 2px 10px rgba(0,0,0,0.3)',
-            color: '#F056B7',
+            width: { xs: '100%', sm: '90%', md: '750px' }, // Увеличили с 670px до 750px
+            maxWidth: '750px', // Увеличили максимальную ширину
+            margin: '0 auto',
+            height: { xs: '200px', sm: '220px', md: '252px' },
+            backgroundColor: 'rgba(86, 13, 48, 0.57)',
+            borderTopLeftRadius: '45px',
+            borderTopRightRadius: '45px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: { xs: '20px 16px', md: '20px 30px' },
+            boxSizing: 'border-box',
+            // Для мобильных - добавляем небольшие отступы по бокам
+            mx: { xs: 2, sm: 'auto' },
           }}
         >
-          Collector Mingle
-        </Typography>
-        
-        <Typography
-          variant="h5"
-          sx={{
-            maxWidth: '411px',
-            mb: 4,
-            fontSize: '1rem',
-            fontFamily: '"Nobile", sans-serif',
-            fontWeight: 400,
-            lineHeight: 1.5,
-          }}
-        >
-          A cozy place where collectors meet, swap treasures, and make new friends
-        </Typography>
-        
-        <Button
-          variant="contained"
-          size="large"
-          endIcon={<ArrowForwardIcon />}
-          sx={{
-            backgroundColor: '#F056B7',
-            color: '#560D30',
-            fontSize: '1rem',
-            fontFamily: '"McLaren", cursive',
-            fontWeight: 400,
-            px: 4,
-            py: 1,
-            borderRadius: '10px',
-            '&:hover': {
-              backgroundColor: '#EC2EA6',
-              transform: 'translateY(-2px)',
-            },
-          }}
-        >
-          Get Started
-        </Button>
-      </Container>
+          <Typography
+            variant="h1"
+            sx={{
+              fontSize: { 
+                xs: '1.75rem', 
+                sm: '2.25rem', 
+                md: '2.5rem', 
+                lg: '3.5rem' // Уменьшили с 4rem до 3.5rem (56px)
+              },
+              fontFamily: '"Rammetto One", cursive',
+              fontWeight: 400,
+              color: '#F056B7',
+              lineHeight: 1,
+              mb: { xs: 1, md: 2 },
+              maxWidth: '100%',
+              // Убираем обрезание текста
+              whiteSpace: 'nowrap',
+              overflow: 'visible', // Меняем с hidden на visible
+              textOverflow: 'clip', // Меняем с ellipsis на clip
+              // Динамическое уменьшение размера текста если не влезает
+              '@media (max-width: 1280px)': {
+                fontSize: '3.25rem',
+              },
+              '@media (max-width: 1100px)': {
+                fontSize: '2.75rem',
+                whiteSpace: 'normal',
+              },
+              '@media (max-width: 900px)': {
+                fontSize: '2.5rem',
+              },
+            }}
+          >
+            Collector Mingle
+          </Typography>
+          
+          <Typography
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '0.9375rem', md: '1rem' },
+              fontFamily: '"Nobile", sans-serif',
+              fontWeight: 400,
+              color: 'white',
+              lineHeight: 1.4,
+              mb: { xs: 2, md: 3 },
+              maxWidth: { xs: '95%', sm: '411px' },
+              px: { xs: 1, sm: 0 },
+            }}
+          >
+            A cozy place where collectors meet, swap treasures, and make new friends
+          </Typography>
+          
+          <Button
+            variant="contained"
+            size="medium"
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              backgroundColor: '#F056B7',
+              color: '#560D30',
+              fontSize: { xs: '0.875rem', md: '1rem' },
+              fontFamily: '"McLaren", cursive',
+              fontWeight: 400,
+              px: { xs: 3, md: 4 },
+              py: { xs: 0.5, md: 1 },
+              borderRadius: '10px',
+              minWidth: '143px',
+              '&:hover': {
+                backgroundColor: '#EC2EA6',
+              },
+            }}
+          >
+            Get Started
+          </Button>
+        </Box>
+      </Box>
     </Box>
   );
 };
