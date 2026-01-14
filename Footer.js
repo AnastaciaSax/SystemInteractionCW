@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Heart } from 'lucide-react';
 import './Footer.css';
 
 const Footer = () => {
@@ -15,97 +14,89 @@ const Footer = () => {
   ];
 
   const socialMedia = [
-    { name: 'Discord', icon: '💬', url: '#' },
-    { name: 'Facebook', icon: '📘', url: '#' },
-    { name: 'YouTube', icon: '▶️', url: '#' },
-    { name: 'Pinterest', icon: '📌', url: '#' },
-    { name: 'Instagram', icon: '📸', url: '#' },
-  ];
-
-  const contacts = [
-    { icon: <MapPin size={20} />, text: '2456 Sunset Blvd.\nLos Angeles, CA 90026, USA' },
-    { icon: <Mail size={20} />, text: 'collector.mingle@gmail.com' },
-    { icon: <Phone size={20} />, text: '(323) 555-2147' },
+    { name: 'Discord', url: '#' },
+    { name: 'Facebook', url: '#' },
+    { name: 'YouTube', url: '#' },
+    { name: 'Pinterest', url: '#' },
+    { name: 'Instagram', url: '#' },
   ];
 
   return (
     <footer className="footer">
       <div className="footer-container">
         <div className="footer-content">
-          {/* Logo & Tagline */}
-          <div className="footer-section footer-logo-section">
-            <div className="footer-logo">
+          {/* Логотип и тэглайн */}
+          <div className="footer-logo-section">
+            <div className="logo-wrapper">
               <img 
                 src="/assets/logo-footer.svg" 
                 alt="Collector Mingle" 
-                className="footer-logo-image"
+                className="footer-logo"
               />
-              <div className="footer-brand">
-                <span className="footer-brand-text">Collector Mingle</span>
-                <p className="footer-tagline">
-                  "Expand your Little World with us"
-                </p>
+              <div className="tagline">
+                "Expand your Little World with us"
               </div>
             </div>
           </div>
 
-          {/* Pages */}
-          <div className="footer-section">
-            <h4 className="footer-heading">Pages</h4>
-            <ul className="footer-links">
-              {pages.map((page) => (
-                <li key={page.path}>
-                  <Link to={page.path} className="footer-link">
+          {/* Колонки */}
+          <div className="footer-columns">
+            {/* Pages */}
+            <div className="footer-column pages-column">
+              <h3 className="column-title">Pages</h3>
+              <div className="column-links">
+                {pages.map((page) => (
+                  <Link key={page.path} to={page.path} className="page-link">
                     {page.label}
                   </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+                ))}
+              </div>
+            </div>
 
-          {/* Social Media */}
-          <div className="footer-section">
-            <h4 className="footer-heading">Social Media</h4>
-            <ul className="footer-links">
-              {socialMedia.map((social) => (
-                <li key={social.name}>
+            {/* Social Media */}
+            <div className="footer-column social-column">
+              <h3 className="column-title">Social media</h3>
+              <div className="column-links">
+                {socialMedia.map((social) => (
                   <a 
+                    key={social.name} 
                     href={social.url} 
-                    className="footer-social-link"
+                    className="social-link"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <span className="social-icon">{social.icon}</span>
                     {social.name}
                   </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+                ))}
+              </div>
+            </div>
 
-          {/* Contact */}
-          <div className="footer-section footer-contact-section">
-            <h4 className="footer-heading">Contact</h4>
-            <div className="contact-info">
-              {contacts.map((contact, index) => (
-                <div key={index} className="contact-item">
-                  <div className="contact-icon">{contact.icon}</div>
-                  <span className="contact-text">{contact.text}</span>
+            {/* Contact */}
+            <div className="footer-column contact-column">
+              <h3 className="column-title">Contact</h3>
+              <div className="contact-info">
+                <div className="contact-item">
+                  2456 Sunset Blvd.<br />Los Angeles, CA 90026, USA
                 </div>
-              ))}
+                <div className="contact-item">
+                  collector.mingle@gmail.com
+                </div>
+                <div className="contact-item">
+                  (323) 555-2147
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Divider */}
+        {/* Разделитель */}
         <div className="footer-divider" />
 
-        {/* Copyright */}
+        {/* Копирайт */}
         <div className="footer-bottom">
-          <p className="footer-copyright">
-            Copyright © {currentYear} Collector Mingle | Designed with{' '}
-            <Heart size={16} className="heart-icon" /> by Anastacia Sax
-          </p>
+          <div className="copyright">
+            Copyright © {currentYear} Collector Mingle | Designed by Anastacia Sax
+          </div>
         </div>
       </div>
     </footer>
