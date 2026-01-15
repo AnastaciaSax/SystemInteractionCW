@@ -1,4 +1,13 @@
+// src/services/api.ts (упрощенная версия)
 import axios from 'axios';
+import { 
+  User, 
+  LoginResponse, 
+  Figurine, 
+  TradeAd, 
+  WishlistItem, 
+  Article 
+} from './types';
 
 const API_URL = '/api';
 
@@ -32,40 +41,41 @@ api.interceptors.response.use(
   }
 );
 
-// API методы
+// API методы (TypeScript будет выводить типы автоматически)
 export const authAPI = {
   login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
-  register: (userData: any) => api.post('/auth/register', userData),
-  getMe: () => api.get('/auth/me'),
+    api.post<LoginResponse>('/auth/login', { email, password }),
+  register: (userData: any) => 
+    api.post<LoginResponse>('/auth/register', userData),
+  getMe: () => api.get<User>('/auth/me'),
 };
 
 export const figurinesAPI = {
   getAll: (filters?: { search?: string; rarity?: string; series?: string }) =>
-    api.get('/figurines', { params: filters }),
-  getById: (id: string) => api.get(`/figurines/${id}`),
+    api.get<Figurine[]>('/figurines', { params: filters }),
+  getById: (id: string) => api.get<Figurine>(`/figurines/${id}`),
 };
 
 export const usersAPI = {
-  getAll: () => api.get('/users'),
-  getById: (id: string) => api.get(`/users/${id}`),
+  getAll: () => api.get<User[]>('/users'),
+  getById: (id: string) => api.get<User>(`/users/${id}`),
 };
 
 export const tradeAPI = {
-  getAds: () => api.get('/trade-ads'),
-  createAd: (data: any) => api.post('/trade-ads', data),
-  getAdById: (id: string) => api.get(`/trade-ads/${id}`),
+  getAds: () => api.get<TradeAd[]>('/trade-ads'),
+  createAd: (data: any) => api.post<TradeAd>('/trade-ads', data),
+  getAdById: (id: string) => api.get<TradeAd>(`/trade-ads/${id}`),
 };
 
 export const wishlistAPI = {
-  getMyWishlist: () => api.get('/wishlist/me'),
-  addToWishlist: (data: any) => api.post('/wishlist', data),
-  removeFromWishlist: (id: string) => api.delete(`/wishlist/${id}`),
+  getMyWishlist: () => api.get<WishlistItem[]>('/wishlist/me'),
+  addToWishlist: (data: any) => api.post<WishlistItem>('/wishlist', data),
+  removeFromWishlist: (id: string) => api.delete<{ success: boolean }>(`/wishlist/${id}`),
 };
 
 export const articlesAPI = {
-  getAll: () => api.get('/articles'),
-  getByCategory: (category: string) => api.get(`/articles?category=${category}`),
+  getAll: () => api.get<Article[]>('/articles'),
+  getByCategory: (category: string) => api.get<Article[]>(`/articles?category=${category}`),
 };
 
 // Вспомогательные функции
