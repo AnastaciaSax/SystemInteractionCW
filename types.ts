@@ -1,10 +1,3 @@
-// src/services/types.ts
-export interface LoginResponse {
-  success: boolean; // ← добавить
-  token: string;
-  user: User;
-}
-
 export interface User {
   id: string;
   email: string;
@@ -16,19 +9,26 @@ export interface User {
   region?: 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER';
   createdAt: string;
   updatedAt: string;
-  profile?: Profile; // ← профиль может быть вложен
+  profile?: Profile; // ← важно: профиль может быть undefined
 }
 
 export interface Profile {
   id: string;
   userId: string;
-  avatar?: string;
+  avatar: string;
   bio?: string;
   location?: string;
   rating: number;
   status: string;
   achievements: string[];
   tradeCount: number;
+}
+
+// Сервер возвращает success: boolean
+export interface LoginResponse {
+  success: boolean;
+  token: string;
+  user: User;
 }
 
 export interface Figurine {

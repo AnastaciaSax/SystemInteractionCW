@@ -1,4 +1,3 @@
-// src/pages/SignIn/components/SignInForm.tsx
 import React, { useState } from 'react';
 import {
   Box,
@@ -36,55 +35,90 @@ const SignInForm: React.FC = () => {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Очищаем ошибку при изменении любого поля
     setError('');
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Предотвращаем перезагрузку страницы
+    setLoading(true);
+    setError('');
 
-  try {
-    const response = await authAPI.login(formData.email, formData.password);
-    const data = response.data;
-    
-    // Проверяем успешность ответа
-    if (data && data.success && data.token && data.user) {
-      const { token, user } = data;
-      
-      // Сохраняем email если выбрано "Remember Me"
-      if (rememberMe) {
-        localStorage.setItem('rememberedEmail', formData.email);
-      } else {
-        localStorage.removeItem('rememberedEmail');
-      }
-      
-      setAuthToken(token);
-      localStorage.setItem('user', JSON.stringify(user));
-      
-      console.log('Login successful:', user);
-      
-      // Перенаправляем в зависимости от роли
-      if (user.role === 'ADMIN') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/profile');
-      }
-    } else {
-      setError('Login failed. Please check your credentials.');
+    // Базовая валидация на фронтенде
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      setLoading(false);
+      return;
     }
-  } catch (err: any) {
-    console.error('Login error:', err);
-    const errorMessage = err.response?.data?.error || 'Invalid email or password';
-    setError(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+    
+    if (!formData.password) {
+      setError('Password is required');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authAPI.login(formData.email, formData.password);
+      const data = response.data;
+      
+      console.log('Login response:', data); // Для отладки
+      
+      if (data && data.success && data.token && data.user) {
+        const { token, user } = data;
+        
+        // Сохраняем email если выбрано "Remember Me"
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', formData.email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
+        
+        setAuthToken(token);
+        localStorage.setItem('user', JSON.stringify(user));
+        
+        console.log('Login successful:', user);
+        
+        // Перенаправляем в зависимости от роли
+        if (user.role === 'ADMIN') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/profile');
+        }
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
+    } catch (err: any) {
+      console.error('Login error details:', err);
+      
+      // Улучшенная обработка ошибок
+      if (err.response) {
+        // Сервер ответил с ошибкой
+        const serverError = err.response.data;
+        if (serverError && serverError.error) {
+          setError(serverError.error);
+        } else if (err.response.status === 401) {
+          setError('Invalid email or password');
+        } else if (err.response.status === 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          setError(`Error: ${err.response.status} ${err.response.statusText}`);
+        }
+      } else if (err.request) {
+        // Запрос был сделан, но ответа нет
+        setError('Network error. Please check your connection.');
+      } else {
+        // Что-то случилось при настройке запроса
+        setError('Unexpected error. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Box
@@ -128,7 +162,7 @@ const SignInForm: React.FC = () => {
         </Alert>
       )}
 
-      <Box component="form" onSubmit={handleSubmit}>
+      <Box component="form" onSubmit={handleSubmit} noValidate>
         {/* Поле для Email/Username */}
         <Box
           sx={{
@@ -159,6 +193,8 @@ const SignInForm: React.FC = () => {
             value={formData.email}
             onChange={handleChange}
             variant="standard"
+            required
+            error={!!error}
             InputProps={{
               disableUnderline: true,
               startAdornment: (
@@ -174,7 +210,7 @@ const SignInForm: React.FC = () => {
             }}
             sx={{
               '& .MuiInput-root': {
-                borderBottom: '2px solid #EC2EA6',
+                borderBottom: error ? '2px solid #FF4C4C' : '2px solid #EC2EA6',
                 '&:before': { borderBottom: 'none' },
                 '&:after': { borderBottom: 'none' },
                 '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
@@ -215,6 +251,8 @@ const SignInForm: React.FC = () => {
             value={formData.password}
             onChange={handleChange}
             variant="standard"
+            required
+            error={!!error}
             InputProps={{
               disableUnderline: true,
               startAdornment: (
@@ -228,6 +266,7 @@ const SignInForm: React.FC = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     edge="end"
                     sx={{ color: '#EC2EA6' }}
+                    type="button"
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -241,7 +280,7 @@ const SignInForm: React.FC = () => {
             }}
             sx={{
               '& .MuiInput-root': {
-                borderBottom: '2px solid #EC2EA6',
+                borderBottom: error ? '2px solid #FF4C4C' : '2px solid #EC2EA6',
                 '&:before': { borderBottom: 'none' },
                 '&:after': { borderBottom: 'none' },
                 '&:hover:not(.Mui-disabled):before': { borderBottom: 'none' },
@@ -316,31 +355,6 @@ const SignInForm: React.FC = () => {
           </Button>
         </Box>
       </Box>
-
-      {/* Demo accounts hint (скрыто по умолчанию, можно показать в деве) */}
-      {process.env.NODE_ENV === 'development' && (
-        <Box
-          sx={{
-            mt: 4,
-            p: 2,
-            backgroundColor: 'rgba(150, 242, 247, 0.15)',
-            borderRadius: 2,
-            border: '1px dashed rgba(86, 13, 48, 0.3)',
-          }}
-        >
-          <Typography
-            variant="body2"
-            sx={{
-              color: '#560D30',
-              fontSize: '14px',
-              fontFamily: '"Nobile", sans-serif',
-              textAlign: 'center',
-            }}
-          >
-            Demo: admin@collector.com / admin123
-          </Typography>
-        </Box>
-      )}
     </Box>
   );
 };

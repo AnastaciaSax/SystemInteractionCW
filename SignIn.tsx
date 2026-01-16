@@ -63,7 +63,7 @@ const SignIn: React.FC = () => {
                 },
               }}
             >
-              Create Account
+              Check in!
             </Link>
           </Typography>
         </Box>
