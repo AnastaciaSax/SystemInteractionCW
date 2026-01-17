@@ -1,4 +1,3 @@
-// src/pages/CheckIn/components/ModeStep.tsx
 import React, { useState } from 'react';
 import {
   Box,
@@ -11,17 +10,17 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 interface ModeStepProps {
-  onNext: (mode: 'SIMPLE' | 'PARENTAL') => void;
+  onNext: (mode: 'SIMPLE' | 'ADMIN') => void;
   onBack: () => void;
-  initialMode?: 'SIMPLE' | 'PARENTAL';
+  initialMode?: 'SIMPLE' | 'ADMIN';
 }
 
 const ModeStep: React.FC<ModeStepProps> = ({ onNext, onBack, initialMode = 'SIMPLE' }) => {
-  const [mode, setMode] = useState<'SIMPLE' | 'PARENTAL'>(initialMode);
+  const [mode, setMode] = useState<'SIMPLE' | 'ADMIN'>(initialMode);
 
   const handleModeChange = (
     event: React.MouseEvent<HTMLElement>,
-    newMode: 'SIMPLE' | 'PARENTAL' | null,
+    newMode: 'SIMPLE' | 'ADMIN' | null,
   ) => {
     if (newMode !== null) {
       setMode(newMode);
@@ -56,20 +55,6 @@ const ModeStep: React.FC<ModeStepProps> = ({ onNext, onBack, initialMode = 'SIMP
         }}
       >
         Pick User Mode
-      </Typography>
-
-      <Typography
-        sx={{
-          color: '#82164A',
-          fontSize: { xs: '14px', sm: '16px' },
-          fontFamily: '"Nobile", sans-serif',
-          textAlign: 'center',
-          mb: 4,
-          maxWidth: '600px',
-          margin: '0 auto',
-        }}
-      >
-        Choose how you want to experience Collector Mingle
       </Typography>
 
       <Box
@@ -120,53 +105,41 @@ const ModeStep: React.FC<ModeStepProps> = ({ onNext, onBack, initialMode = 'SIMP
             Simple
           </ToggleButton>
           <ToggleButton 
-            value="PARENTAL" 
-            aria-label="parental mode"
-            disabled
+            value="ADMIN" 
+            aria-label="admin mode"
             sx={{
-              color: 'rgba(86, 13, 48, 0.5) !important',
-              cursor: 'not-allowed',
+              color: mode === 'ADMIN' ? '#560D30' : 'rgba(86, 13, 48, 0.8)',
+              backgroundColor: mode === 'ADMIN' ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
               '&.Mui-selected': {
-                backgroundColor: 'rgba(240, 94, 186, 0.5) !important',
+                backgroundColor: '#F05EBA',
+                color: 'white',
               },
             }}
           >
-            Parental (Coming Soon)
+            Admin
           </ToggleButton>
         </ToggleButtonGroup>
+      </Box>
 
-        <Box
-          sx={{
-            backgroundColor: 'rgba(150, 242, 247, 0.15)',
-            borderRadius: 2,
-            padding: { xs: 2, sm: 3 },
-            border: '1px solid rgba(86, 13, 48, 0.2)',
-            maxWidth: '600px',
-          }}
-        >
+      {/* Description */}
+      <Box sx={{ mb: 4, textAlign: 'center' }}>
+        
+        {mode === 'ADMIN' && (
           <Typography
             sx={{
               color: '#560D30',
-              fontSize: { xs: '14px', sm: '16px' },
+              fontSize: { xs: '12px', sm: '14px' },
               fontFamily: '"Nobile", sans-serif',
-              mb: 1,
-              fontWeight: 600,
+              fontStyle: 'italic',
+              backgroundColor: 'rgba(150, 242, 247, 0.15)',
+              padding: 2,
+              borderRadius: 2,
+              border: '1px dashed #EC2EA6',
             }}
           >
-            {mode === 'SIMPLE' ? 'Simple Mode:' : 'Parental Mode:'}
+            Note: Admin accounts require special approval. Your registration will be reviewed by existing administrators.
           </Typography>
-          <Typography
-            sx={{
-              color: '#82164A',
-              fontSize: { xs: '13px', sm: '14px' },
-              fontFamily: '"Nobile", sans-serif',
-            }}
-          >
-            {mode === 'SIMPLE'
-              ? 'Full access to all features for collectors 18+. You can trade, chat with other collectors, and manage your collection independently.'
-              : 'Limited access for collectors under 18. All activities are supervised by a parent or guardian.'}
-          </Typography>
-        </Box>
+        )}
       </Box>
 
       {/* Navigation Buttons */}

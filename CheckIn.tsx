@@ -9,27 +9,12 @@ import ModeStep from './components/ModeStep';
 import InfoStep from './components/InfoStep';
 import VerificationStep from './components/VerificationStep';
 import SubmitStep from './components/SubmitStep';
-
-// Моковые функции для API (замените реальными)
-const mockResendCode = async (email: string) => {
-  console.log(`[MOCK] Verification code sent to: ${email}`);
-  console.log(`[MOCK] Code: 123456 (for demo purposes)`);
-  return { success: true, message: 'Verification code sent successfully' };
-};
-
-const mockVerifyCode = async (code: string) => {
-  console.log(`[MOCK] Verifying code: ${code}`);
-  // В реальном приложении здесь будет запрос к серверу
-  if (code === '123456') {
-    return { success: true, message: 'Email verified successfully' };
-  }
-  return { success: false, message: 'Invalid verification code' };
-};
+import { authAPI } from '../../services/api';
 
 const CheckIn: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    mode: 'SIMPLE' as 'SIMPLE' | 'PARENTAL',
+    mode: 'SIMPLE' as 'SIMPLE' | 'ADMIN',
     userData: {} as any,
     verificationEmail: '',
   });
@@ -46,17 +31,21 @@ const CheckIn: React.FC = () => {
     { number: 4, label: 'Submit' },
   ];
 
-  const handleModeSelect = (mode: 'SIMPLE' | 'PARENTAL') => {
+  const handleModeSelect = (mode: 'SIMPLE' | 'ADMIN') => {
     setFormData(prev => ({ ...prev, mode }));
     setCurrentStep(2);
   };
 
   const handleInfoSubmit = (userData: any) => {
-    setFormData(prev => ({ ...prev, userData, verificationEmail: userData.email }));
+    setFormData(prev => ({ 
+      ...prev, 
+      userData, 
+      verificationEmail: userData.email 
+    }));
     setCurrentStep(3);
     
-    // Отправляем код верификации
-    mockResendCode(userData.email);
+    // Отправляем код верификации через реальный API
+    handleResendCode();
   };
 
   const handleVerificationNext = () => {
@@ -70,22 +59,46 @@ const CheckIn: React.FC = () => {
   };
 
   const handleResendCode = async () => {
-    const result = await mockResendCode(formData.verificationEmail);
-    if (result.success) {
+  try {
+    const result = await authAPI.sendVerification(formData.verificationEmail);
+    if (result.data.success) {
       setSnackbar({
         open: true,
-        message: 'Verification code resent successfully',
+        message: result.data.message || 'Verification code sent successfully',
         severity: 'success',
       });
+      return result.data;
     }
-    return result;
-  };
+    // Если success: false, но нет error, используем message
+    throw new Error(result.data.message || 'Failed to send verification code');
+  } catch (error: any) {
+    const errorMessage = error.response?.data?.message || 
+                       error.response?.data?.error || 
+                       error.message || 
+                       'Failed to send verification code';
+    setSnackbar({
+      open: true,
+      message: errorMessage,
+      severity: 'error',
+    });
+    throw error;
+  }
+};
 
   const handleVerifyCode = async (code: string) => {
-    const result = await mockVerifyCode(code);
-    return result;
-  };
-
+  try {
+    const result = await authAPI.verifyCode(formData.verificationEmail, code);
+    return result.data;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 
+              error.response?.data?.error || 
+              error.message || 
+              'Verification failed',
+    };
+  }
+};
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };

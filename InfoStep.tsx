@@ -26,6 +26,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Region } from '../../../services/types';
+import { SelectChangeEvent } from '@mui/material';
 
 interface InfoStepProps {
   onNext: (data: any) => void;
@@ -51,23 +52,40 @@ const InfoStep: React.FC<InfoStepProps> = ({ onNext, onBack, initialData = {} })
     location: initialData.location || '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
-    const { name, value } = e.target;
-    if (name) {
-      setFormData(prev => ({
+const handleChange = (
+  e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+) => {
+  const { name, value } = e.target;
+  if (name) {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+    if (errors[name]) {
+      setErrors(prev => ({
         ...prev,
-        [name]: value,
+        [name]: '',
       }));
-      // Clear error for this field when user starts typing
-      if (errors[name]) {
-        setErrors(prev => ({
-          ...prev,
-          [name]: '',
-        }));
-      }
     }
-  };
+  }
+};
 
+const handleSelectChange = (event: SelectChangeEvent<string>) => {
+  const name = event.target.name as string;
+  const value = event.target.value;
+  
+  setFormData(prev => ({
+    ...prev,
+    [name]: value,
+  }));
+  
+  if (errors[name]) {
+    setErrors(prev => ({
+      ...prev,
+      [name]: '',
+    }));
+  }
+};
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -155,19 +173,6 @@ const InfoStep: React.FC<InfoStepProps> = ({ onNext, onBack, initialData = {} })
         User Information
       </Typography>
 
-      <Typography
-        sx={{
-          color: '#82164A',
-          fontSize: { xs: '14px', sm: '16px' },
-          fontFamily: '"Nobile", sans-serif',
-          textAlign: 'center',
-          mb: 4,
-          maxWidth: '600px',
-          margin: '0 auto',
-        }}
-      >
-        Please fill in your details to create your collector account
-      </Typography>
 
       {Object.keys(errors).length > 0 && (
         <Alert
@@ -413,7 +418,7 @@ const InfoStep: React.FC<InfoStepProps> = ({ onNext, onBack, initialData = {} })
                 minWidth: '100px',
               }}
             >
-              Age (Optional)
+              Age
             </Typography>
             <TextField
               fullWidth
@@ -512,21 +517,21 @@ const InfoStep: React.FC<InfoStepProps> = ({ onNext, onBack, initialData = {} })
             </Typography>
             <FormControl fullWidth variant="standard">
               <Select
-                value={formData.region}
-                onChange={handleChange}
-                name="region"
-                sx={{
-                  '&:before': { borderBottom: 'none' },
-                  '&:after': { borderBottom: 'none' },
-                  '& .MuiSelect-select': {
-                    borderBottom: '2px solid #EC2EA6',
-                    color: '#560D30',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontSize: '16px',
-                    paddingBottom: '8px',
-                  },
-                }}
-              >
+  value={formData.region}
+  onChange={handleSelectChange}
+  name="region"
+  sx={{
+    '&:before': { borderBottom: 'none' },
+    '&:after': { borderBottom: 'none' },
+    '& .MuiSelect-select': {
+      borderBottom: '2px solid #EC2EA6',
+      color: '#560D30',
+      fontFamily: '"Nobile", sans-serif',
+      fontSize: '16px',
+      paddingBottom: '8px',
+    },
+  }}
+>
                 <MenuItem value="USA">USA</MenuItem>
                 <MenuItem value="EU">Europe</MenuItem>
                 <MenuItem value="CIS">CIS</MenuItem>
@@ -635,7 +640,7 @@ const InfoStep: React.FC<InfoStepProps> = ({ onNext, onBack, initialData = {} })
             },
           }}
         >
-          Continue
+          Next
         </Button>
       </Box>
     </Box>

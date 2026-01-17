@@ -1,20 +1,24 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { prisma } from './prisma/client';
-import { authenticateToken } from './middleware/auth';
+import authRoutes from './middleware/auth';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(express.json());
 
-// Импорты должны быть вверху, перенесите их
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+// Подключаем auth маршруты
+app.use('/api/auth', authRoutes);
 
 // Основные эндпоинты
 app.get('/api/health', (req, res) => {
@@ -100,16 +104,40 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// Аутентификация и регистрация (оставьте как есть, но проверьте импорты)
+// Аутентификация и регистрация
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { email, username, password, age, parentEmail, region } = req.body;
+    const { email, username, password, age, parentEmail, region, role = 'USER' } = req.body;
     
+    // Проверка на уникальность email
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'User with this email already exists' 
+      });
     }
-    
+
+    // Проверка на уникальность username
+    const existingUsername = await prisma.user.findFirst({ 
+      where: { username } 
+    });
+    if (existingUsername) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Username already taken' 
+      });
+    }
+
+    // Для ADMIN аккаунтов - можно добавить дополнительную проверку
+    // Например, проверка секретного ключа или ограничение создания ADMIN
+    if (role === 'ADMIN') {
+      // Здесь можно добавить логику проверки, например:
+      // if (!adminSecretKey || adminSecretKey !== process.env.ADMIN_SECRET) {
+      //   return res.status(403).json({ error: 'Not authorized to create admin account' });
+      // }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const user = await prisma.user.create({
@@ -117,6 +145,7 @@ app.post('/api/auth/register', async (req, res) => {
         email,
         username,
         password: hashedPassword,
+        role: role || 'USER',
         age: age ? parseInt(age) : null,
         parentEmail,
         region,
@@ -124,8 +153,8 @@ app.post('/api/auth/register', async (req, res) => {
           create: {
             avatar: '/assets/default-avatar.png',
             bio: '',
-            status: 'Beginner',
-            achievements: [],
+            status: role === 'ADMIN' ? 'Administrator' : 'Beginner',
+            achievements: role === 'ADMIN' ? ['Administrator'] : ['New Member'],
             tradeCount: 0
           }
         }
@@ -147,11 +176,18 @@ app.post('/api/auth/register', async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
+        age: user.age,
+        parentEmail: user.parentEmail,
+        region: user.region,
         profile: user.profile
       }
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('Registration error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Registration failed' 
+    });
   }
 });
 
@@ -165,12 +201,18 @@ app.post('/api/auth/login', async (req, res) => {
     });
     
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid credentials' 
+      });
     }
     
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid credentials' 
+      });
     }
     
     const token = jwt.sign(
@@ -191,11 +233,13 @@ app.post('/api/auth/login', async (req, res) => {
       }
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Login failed' 
+    });
   }
 });
-
-// Остальные эндпоинты (добавьте позже)
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

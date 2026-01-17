@@ -27,7 +27,7 @@ import { authAPI, setAuthToken } from '../../../services/api';
 interface SubmitStepProps {
   onBack: () => void;
   userData: any;
-  mode: 'SIMPLE' | 'PARENTAL';
+  mode: 'SIMPLE' | 'ADMIN'; // Измените PARENTAL на ADMIN
 }
 
 const SubmitStep: React.FC<SubmitStepProps> = ({ onBack, userData, mode }) => {
@@ -38,55 +38,59 @@ const SubmitStep: React.FC<SubmitStepProps> = ({ onBack, userData, mode }) => {
   const [success, setSuccess] = useState('');
   const [termsDialogOpen, setTermsDialogOpen] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!agreed) {
-      setError('Please agree to the Terms of Service and Privacy Policy');
-      return;
-    }
+const handleSubmit = async () => {
+  if (!agreed) {
+    setError('Please agree to the Terms of Service and Privacy Policy');
+    return;
+  }
 
-    setLoading(true);
-    setError('');
+  setLoading(true);
+  setError('');
 
-    try {
-      const registrationData = {
-        email: userData.email,
-        username: userData.username,
-        password: userData.password,
-        age: userData.age ? parseInt(userData.age) : null,
-        parentEmail: userData.parentEmail || null,
-        region: userData.region,
-      };
+  try {
+    const registrationData = {
+      email: userData.email,
+      username: userData.username,
+      password: userData.password,
+      age: userData.age ? parseInt(userData.age) : null,
+      parentEmail: userData.parentEmail || null,
+      region: userData.region,
+      // Добавляем роль в зависимости от режима
+      role: mode === 'ADMIN' ? 'ADMIN' : 'USER',
+    };
 
-      const response = await authAPI.register(registrationData);
-      const data = response.data;
+    const response = await authAPI.register(registrationData);
+    const data = response.data;
 
-      if (data && data.success && data.token && data.user) {
-        const { token, user } = data;
-        
-        setAuthToken(token);
-        localStorage.setItem('user', JSON.stringify(user));
-        setSuccess('Account created successfully!');
-        
-        setTimeout(() => {
-          navigate('/profile');
-        }, 2000);
-      } else {
-        setError(data?.error || 'Registration failed. Please try again.');
-      }
-    } catch (err: any) {
-      console.error('Registration error:', err);
+    if (data && data.success && data.token && data.user) {
+      const { token, user } = data;
       
-      if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else if (err.response?.status === 400) {
-        setError('User with this email already exists');
-      } else {
-        setError('Registration failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
+      setAuthToken(token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setSuccess(mode === 'ADMIN' 
+        ? 'Admin account created successfully! Pending approval.' 
+        : 'Account created successfully!');
+      
+      setTimeout(() => {
+        navigate('/profile');
+      }, 2000);
+    } else {
+      setError(data?.error || 'Registration failed. Please try again.');
     }
-  };
+  } catch (err: any) {
+    console.error('Registration error:', err);
+    
+    if (err.response?.data?.error) {
+      setError(err.response.data.error);
+    } else if (err.response?.status === 400) {
+      setError('User with this email already exists');
+    } else {
+      setError('Registration failed. Please try again.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleOpenTerms = () => {
     setTermsDialogOpen(true);
@@ -281,22 +285,22 @@ const SubmitStep: React.FC<SubmitStepProps> = ({ onBack, userData, mode }) => {
             <Divider sx={{ my: 1 }} />
             
             <ListItem disablePadding sx={{ py: 1 }}>
-              <ListItemText
-                primary="User Mode"
-                secondary={mode === 'SIMPLE' ? 'Simple (Full Access)' : 'Parental (Supervised)'}
-                primaryTypographyProps={{
-                  color: '#852654',
-                  fontSize: '14px',
-                  fontFamily: '"Nobile", sans-serif',
-                }}
-                secondaryTypographyProps={{
-                  color: '#560D30',
-                  fontSize: '16px',
-                  fontFamily: '"Nobile", sans-serif',
-                  fontWeight: 500,
-                }}
-              />
-            </ListItem>
+  <ListItemText
+    primary="User Mode"
+    secondary={mode === 'SIMPLE' ? 'Simple (Regular User)' : 'Admin (Platform Manager)'} // Исправьте текст
+    primaryTypographyProps={{
+      color: '#852654',
+      fontSize: '14px',
+      fontFamily: '"Nobile", sans-serif',
+    }}
+    secondaryTypographyProps={{
+      color: '#560D30',
+      fontSize: '16px',
+      fontFamily: '"Nobile", sans-serif',
+      fontWeight: 500,
+    }}
+  />
+</ListItem>
           </List>
         </Paper>
 
