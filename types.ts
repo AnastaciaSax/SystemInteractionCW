@@ -11,6 +11,7 @@ export interface User {
   updatedAt: string;
   profile?: Profile; // ← важно: профиль может быть undefined
 }
+export type Region = 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER';
 
 export interface Profile {
   id: string;
@@ -29,6 +30,7 @@ export interface LoginResponse {
   success: boolean;
   token: string;
   user: User;
+  error?: string; // Добавьте это
 }
 
 export interface Figurine {

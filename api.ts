@@ -1,4 +1,4 @@
-// src/services/api.ts (упрощенная версия)
+// src/services/api.ts 
 import axios from 'axios';
 import { 
   User, 
@@ -48,6 +48,12 @@ export const authAPI = {
   register: (userData: any) => 
     api.post<LoginResponse>('/auth/register', userData),
   getMe: () => api.get<User>('/auth/me'),
+  sendVerification: (email: string) =>
+    api.post<{ success: boolean; message: string; demoCode?: string }>('/auth/send-verification', { email }),
+  verifyCode: (email: string, code: string) =>
+    api.post<{ success: boolean; message: string }>('/auth/verify-code', { email, code }),
+  checkVerification: (email: string) => // ← Добавьте этот метод
+    api.post<{ success: boolean; verified: boolean; message: string }>('/auth/check-verification', { email }),
 };
 
 export const figurinesAPI = {

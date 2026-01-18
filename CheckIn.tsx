@@ -36,17 +36,14 @@ const CheckIn: React.FC = () => {
     setCurrentStep(2);
   };
 
-  const handleInfoSubmit = (userData: any) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      userData, 
-      verificationEmail: userData.email 
-    }));
-    setCurrentStep(3);
-    
-    // Отправляем код верификации через реальный API
-    handleResendCode();
-  };
+const handleInfoSubmit = (userData: any) => {
+  setFormData(prev => ({ 
+    ...prev, 
+    userData, 
+    verificationEmail: userData.email 
+  }));
+  setCurrentStep(3);
+};
 
   const handleVerificationNext = () => {
     setCurrentStep(4);
@@ -58,7 +55,7 @@ const CheckIn: React.FC = () => {
     }
   };
 
-  const handleResendCode = async () => {
+  const handleResendCode = async (): Promise<{ success: boolean; message: string }> => {
   try {
     const result = await authAPI.sendVerification(formData.verificationEmail);
     if (result.data.success) {
@@ -67,10 +64,23 @@ const CheckIn: React.FC = () => {
         message: result.data.message || 'Verification code sent successfully',
         severity: 'success',
       });
-      return result.data;
+      // Гарантируем возврат объекта с правильной структурой
+      return {
+        success: true,
+        message: result.data.message || 'Verification code sent successfully'
+      };
     }
-    // Если success: false, но нет error, используем message
-    throw new Error(result.data.message || 'Failed to send verification code');
+    // Если success: false
+    const errorMessage = result.data.message || 'Failed to send verification code';
+    setSnackbar({
+      open: true,
+      message: errorMessage,
+      severity: 'error',
+    });
+    return {
+      success: false,
+      message: errorMessage
+    };
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || 
                        error.response?.data?.error || 
@@ -81,11 +91,15 @@ const CheckIn: React.FC = () => {
       message: errorMessage,
       severity: 'error',
     });
-    throw error;
+    // Возвращаем объект с ошибкой вместо throw
+    return {
+      success: false,
+      message: errorMessage
+    };
   }
 };
 
-  const handleVerifyCode = async (code: string) => {
+  const handleVerifyCode = async (code: string): Promise<{ success: boolean; message: string }> => {
   try {
     const result = await authAPI.verifyCode(formData.verificationEmail, code);
     return result.data;
@@ -99,6 +113,7 @@ const CheckIn: React.FC = () => {
     };
   }
 };
+
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };

@@ -1,5 +1,5 @@
 // src/pages/CheckIn/components/VerificationStep.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -36,11 +36,15 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const hasSentCode = useRef(false);
 
-  useEffect(() => {
-    // Send verification code on component mount
+useEffect(() => {
+  // Send verification code on component mount ONLY if email exists
+  if (!hasSentCode.current && email) {
     sendVerificationCode();
-  }, []);
+    hasSentCode.current = true;
+  }
+}, [email]); // Добавьте email в зависимости
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -54,7 +58,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
     return () => clearInterval(interval);
   }, [timer]);
 
-  const sendVerificationCode = async () => {
+  const sendVerificationCode = useCallback(async () => {
     try {
       const result = await onResendCode();
       if (result.success) {
@@ -67,7 +71,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
     } catch (err) {
       setError('Failed to send verification code');
     }
-  };
+  }, [email, onResendCode]);
 
   const handleChange = (index: number, value: string) => {
     if (value.length > 1) {
@@ -165,20 +169,6 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
         Email Verification
       </Typography>
 
-      <Typography
-        sx={{
-          color: '#82164A',
-          fontSize: { xs: '14px', sm: '16px' },
-          fontFamily: '"Nobile", sans-serif',
-          textAlign: 'center',
-          mb: 4,
-          maxWidth: '600px',
-          margin: '0 auto',
-        }}
-      >
-        We've sent a verification code to your email address
-      </Typography>
-
       <Box
         sx={{
           display: 'flex',
@@ -188,30 +178,6 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
           mb: 4,
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 2,
-            backgroundColor: 'rgba(150, 242, 247, 0.15)',
-            padding: { xs: 2, sm: 3 },
-            borderRadius: 2,
-            border: '1px solid rgba(86, 13, 48, 0.2)',
-          }}
-        >
-          <EmailIcon sx={{ color: '#560D30', fontSize: 24 }} />
-          <Typography
-            sx={{
-              color: '#560D30',
-              fontSize: { xs: '14px', sm: '16px' },
-              fontFamily: '"Nobile", sans-serif',
-              fontWeight: 600,
-            }}
-          >
-            {email}
-          </Typography>
-        </Box>
-
         {success && (
           <Alert
             severity="success"
@@ -354,8 +320,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({
               maxWidth: '400px',
             }}
           >
-            Check your email (including spam folder) for the verification code.
-            In production, this would be sent via email. For demo, check the server console.
+            Check your email (including SPAM) for the verification code.
           </Typography>
         </Box>
       </Box>
