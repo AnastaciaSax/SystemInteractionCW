@@ -1,0 +1,54 @@
+
+
+/* Адаптивные стили для карточек */
+@media (max-width: 600px) {
+  .trade-ad-card {
+    margin-bottom: 20px;
+  }
+}
+
+/* Анимация загрузки */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Стили для фильтров на мобильных */
+@media (max-width: 768px) {
+  .trade-filters {
+    padding: 16px !important;
+  }
+  
+  .trade-filter-row {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  
+  .trade-filter-button {
+    width: 100% !important;
+  }
+}
+
+/* Кастомные стили для скролла */
+.trade-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.trade-list::-webkit-scrollbar-track {
+  background: #FFF1F8;
+  border-radius: 4px;
+}
+
+.trade-list::-webkit-scrollbar-thumb {
+  background: #EC2EA6;
+  border-radius: 4px;
+}
+
+.trade-list::-webkit-scrollbar-thumb:hover {
+  background: #F056B7;
+}
