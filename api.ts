@@ -6,7 +6,8 @@ import {
   Figurine, 
   TradeAd, 
   WishlistItem, 
-  Article 
+  Article,
+   TradeAdWithDetails,
 } from './types';
 
 const API_URL = '/api';
@@ -68,9 +69,19 @@ export const usersAPI = {
 };
 
 export const tradeAPI = {
-  getAds: () => api.get<TradeAd[]>('/trade-ads'),
+  getAds: (params?: {
+    page?: number;
+    limit?: number;
+    series?: string;
+    condition?: string;
+    region?: string;
+    search?: string;
+  }) => api.get<{ ads: TradeAdWithDetails[]; total: number; page: number; pages: number }>('/trade-ads', { params }),
   createAd: (data: any) => api.post<TradeAd>('/trade-ads', data),
-  getAdById: (id: string) => api.get<TradeAd>(`/trade-ads/${id}`),
+  getAdById: (id: string) => api.get<TradeAdWithDetails>(`/trade-ads/${id}`),
+  updateAd: (id: string, data: any) => api.put<TradeAd>(`/trade-ads/${id}`, data),
+  deleteAd: (id: string) => api.delete<{ success: boolean }>(`/trade-ads/${id}`),
+  getMyAds: () => api.get<TradeAdWithDetails[]>('/trade-ads/my'),
 };
 
 export const wishlistAPI = {

@@ -82,3 +82,18 @@ export interface Article {
   views: number;
   createdAt: string;
 }
+
+export interface TradeAdWithDetails extends TradeAd {
+  user: {
+    id: string;
+    username: string;
+    profile?: {
+      avatar: string;
+      rating: number;
+    };
+  };
+  figurine: {
+    name: string;
+    series: string;
+  };
+}
