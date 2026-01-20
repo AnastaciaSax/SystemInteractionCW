@@ -1,4 +1,4 @@
-// client/src/components/ui/SearchInput/SearchInput.tsx
+// client/src/components/ui/SearchInput
 import React, { useState } from 'react';
 import { 
   TextField, 
@@ -6,7 +6,6 @@ import {
   IconButton,
   Box 
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 
 interface SearchInputProps {
@@ -17,8 +16,6 @@ interface SearchInputProps {
   onClear?: () => void;
   size?: 'small' | 'medium';
   fullWidth?: boolean;
-  iconPosition?: 'start' | 'end';
-  variant?: 'standard' | 'outlined' | 'filled';
 }
 
 const SearchInput: React.FC<SearchInputProps> = ({
@@ -29,8 +26,6 @@ const SearchInput: React.FC<SearchInputProps> = ({
   onClear,
   size = 'medium',
   fullWidth = true,
-  iconPosition = 'start',
-  variant = 'outlined',
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
@@ -46,7 +41,35 @@ const SearchInput: React.FC<SearchInputProps> = ({
   };
 
   return (
-    <Box sx={{ position: 'relative', width: fullWidth ? '100%' : 'auto' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: 1,
+      width: fullWidth ? '100%' : 'auto',
+    }}>
+      {/* Иконка поиска */}
+      <Box 
+        sx={{ 
+          width: 30, 
+          height: 30, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <img 
+          src="/assets/search.svg" 
+          alt="Search" 
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            filter: isFocused ? 'brightness(0.7)' : 'none',
+          }} 
+        />
+      </Box>
+
+      {/* Поле ввода */}
       <TextField
         placeholder={placeholder}
         value={value}
@@ -54,52 +77,53 @@ const SearchInput: React.FC<SearchInputProps> = ({
         onKeyPress={handleKeyPress}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        variant={variant}
+        variant="outlined"
         size={size}
         sx={{
+          flex: 1,
+          minWidth: 120,
           '& .MuiOutlinedInput-root': {
+            height: 30,
             borderRadius: '10px',
             backgroundColor: 'white',
+            border: '1px solid #F056B7',
             '& fieldset': {
-              borderColor: isFocused ? '#560D30' : '#F056B7',
+              border: 'none',
             },
             '&:hover fieldset': {
-              borderColor: '#EC2EA6',
+              border: 'none',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#560D30',
-              boxShadow: '0 0 0 2px rgba(86, 13, 48, 0.1)',
+              border: 'none',
             },
           },
-          width: '100%',
+          '& .MuiInputBase-input': {
+            padding: '6px 12px',
+            fontSize: '14px',
+            color: '#560D30',
+            fontFamily: '"Nobile", sans-serif',
+            '&::placeholder': {
+              color: '#852654',
+              opacity: 0.7,
+            },
+          },
         }}
         InputProps={{
-          startAdornment: iconPosition === 'start' && (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ color: isFocused ? '#560D30' : '#852654' }} />
-            </InputAdornment>
-          ),
-          endAdornment: (
+          endAdornment: value ? (
             <InputAdornment position="end">
-              {value && (
-                <IconButton
-                  onClick={handleClear}
-                  size="small"
-                  sx={{ color: '#852654', mr: 1 }}
-                >
-                  <ClearIcon />
-                </IconButton>
-              )}
-              {iconPosition === 'end' && (
-                <IconButton
-                  onClick={() => onSearch?.()}
-                  sx={{ color: '#560D30' }}
-                >
-                  <SearchIcon />
-                </IconButton>
-              )}
+              <IconButton
+                onClick={handleClear}
+                size="small"
+                sx={{ 
+                  color: '#852654',
+                  padding: '4px',
+                  marginRight: '4px',
+                }}
+              >
+                <ClearIcon fontSize="small" />
+              </IconButton>
             </InputAdornment>
-          ),
+          ) : null,
         }}
       />
     </Box>

@@ -1,6 +1,6 @@
-// client/src/components/ui/SeriesFilter/SeriesFilter.tsx
+// client/src/components/ui/SeriesFilter
 import React from 'react';
-import { Box, Chip } from '@mui/material';
+import { Box } from '@mui/material';
 
 interface SeriesFilterProps {
   series: string[];
@@ -15,21 +15,17 @@ const SeriesFilter: React.FC<SeriesFilterProps> = ({
   series,
   selectedSeries,
   onSeriesChange,
-  variant = 'chips',
+  variant = 'buttons',
   size = 'medium',
-  fullWidth = false,
+  fullWidth = true,
 }) => {
-  const getSeriesColor = (seriesName: string) => {
-    const colors: Record<string, string> = {
-      'G2': '#F05EBA',
-      'G3': '#EC2EA6',
-      'G4': '#F056B7',
-      'G5': '#D81B60',
-      'G6': '#C2185B',
-      'G7': '#AD1457',
-      'OTHER': '#560D30',
-    };
-    return colors[seriesName] || '#852654';
+  const handleSeriesClick = (seriesName: string) => {
+    // Если уже выбрана эта серия - сбрасываем выбор
+    if (selectedSeries === seriesName) {
+      onSeriesChange('');
+    } else {
+      onSeriesChange(seriesName);
+    }
   };
 
   if (variant === 'buttons') {
@@ -38,45 +34,53 @@ const SeriesFilter: React.FC<SeriesFilterProps> = ({
         sx={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 1,
           backgroundColor: 'white',
           borderRadius: '10px',
-          padding: 1,
           border: '1px solid #EC2EA6',
+          overflow: 'hidden',
           width: fullWidth ? '100%' : 'auto',
         }}
       >
         {series.map((s) => (
-          <Chip
+          <Box
             key={s}
-            label={s}
-            onClick={() => onSeriesChange(s)}
+            onClick={() => handleSeriesClick(s)}
             sx={{
-              backgroundColor: selectedSeries === s ? getSeriesColor(s) : 'transparent',
+              flex: 1,
+              minWidth: 'fit-content',
+              textAlign: 'center',
+              backgroundColor: selectedSeries === s ? '#F05EBA' : 'transparent',
               color: selectedSeries === s ? 'white' : '#560D30',
-              border: `1px solid ${getSeriesColor(s)}`,
+              padding: size === 'small' ? '8px 12px' : '10px 16px',
               fontFamily: '"McLaren", cursive',
+              fontSize: size === 'small' ? '16px' : '20px',
               fontWeight: 400,
-              fontSize: size === 'small' ? '14px' : '16px',
-              height: size === 'small' ? '32px' : '40px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              borderRight: '1px solid rgba(236, 46, 166, 0.2)',
+              '&:last-child': {
+                borderRight: 'none',
+              },
               '&:hover': {
-                backgroundColor: selectedSeries === s ? getSeriesColor(s) : 'rgba(240, 94, 186, 0.1)',
+                backgroundColor: selectedSeries === s ? '#F056B7' : 'rgba(240, 94, 186, 0.1)',
               },
             }}
-          />
+          >
+            {s}
+          </Box>
         ))}
       </Box>
     );
   }
 
-  // Chip variant (default)
+  // Чипсы вариант
   return (
     <Box
       sx={{
         display: 'flex',
         flexWrap: 'wrap',
         gap: 1,
-        justifyContent: fullWidth ? 'space-between' : 'flex-start',
+        justifyContent: fullWidth ? 'center' : 'flex-start',
         backgroundColor: 'white',
         borderRadius: '10px',
         padding: 1.5,
@@ -87,16 +91,15 @@ const SeriesFilter: React.FC<SeriesFilterProps> = ({
       {series.map((s) => (
         <Box
           key={s}
-          onClick={() => onSeriesChange(s)}
+          onClick={() => handleSeriesClick(s)}
           sx={{
-            flex: '1 0 auto',
-            textAlign: 'center',
+            padding: '6px 16px',
             backgroundColor: selectedSeries === s ? '#F05EBA' : 'transparent',
             color: selectedSeries === s ? 'white' : '#560D30',
-            borderRadius: '10px',
-            padding: size === 'small' ? '4px 8px' : '8px 12px',
+            borderRadius: '20px',
+            border: `1px solid ${selectedSeries === s ? '#F05EBA' : '#EC2EA6'}`,
             fontFamily: '"McLaren", cursive',
-            fontSize: size === 'small' ? '16px' : '20px',
+            fontSize: '16px',
             fontWeight: 400,
             cursor: 'pointer',
             transition: 'all 0.2s ease',

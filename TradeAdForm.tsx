@@ -1,32 +1,31 @@
-// client/src/components/forms/TradeAdForm/TradeAdForm.tsx
+// client/src/components/forms/TradeAdForm.tsx
 import React, { useState } from 'react';
 import {
   Box,
-  TextField,
   Button,
-  Grid,
+  TextField,
   Typography,
-  CircularProgress,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
 } from '@mui/material';
-import ImageUpload from './ImageUpload';
-import FilterSelect from '../ui/FilterSelect';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 interface TradeAdFormProps {
-  initialData?: any;
   onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
-  title?: string;
   submitText?: string;
+  initialData?: any;
 }
 
 const TradeAdForm: React.FC<TradeAdFormProps> = ({
-  initialData = {},
   onSubmit,
   onCancel,
   loading = false,
-  title = 'Create TradeAd',
   submitText = 'Save',
+  initialData = {},
 }) => {
   const [formData, setFormData] = useState({
     title: initialData.title || '',
@@ -34,360 +33,386 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
     condition: initialData.condition || 'MINT',
     series: initialData.series || 'G2',
     region: initialData.region || 'USA',
-    photo: initialData.photo || null,
-    location: initialData.location || '',
+    photo: initialData.photo || '',
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [photoPreview, setPhotoPreview] = useState(initialData.photo || '');
 
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    handleChange(name, value);
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  const handleSelectChange = (e: any) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setPhotoPreview(result);
+        setFormData(prev => ({ ...prev, photo: result }));
+      };
+      reader.readAsDataURL(file);
     }
-
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
-
-    if (!formData.location.trim()) {
-      newErrors.location = 'Location is required';
-    }
-
-    if (!formData.photo && !initialData.photo) {
-      newErrors.photo = 'Photo is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-    try {
-      await onSubmit(formData);
-    } catch (error) {
-      console.error('Form submission error:', error);
-    }
+    await onSubmit(formData);
   };
 
-  const conditionOptions = [
-    { value: 'MINT', label: 'Mint' },
-    { value: 'TLC', label: 'Needs TLC' },
-    { value: 'GOOD', label: 'Good' },
-    { value: 'NIB', label: 'New in Box' },
-  ];
-
-  const seriesOptions = [
-    { value: 'G2', label: 'G2' },
-    { value: 'G3', label: 'G3' },
-    { value: 'G4', label: 'G4' },
-    { value: 'G5', label: 'G5' },
-    { value: 'G6', label: 'G6' },
-    { value: 'G7', label: 'G7' },
-    { value: 'OTHER', label: 'Other' },
-  ];
-
-  const regionOptions = [
-    { value: 'USA', label: 'USA' },
-    { value: 'EU', label: 'Europe' },
-    { value: 'CIS', label: 'CIS' },
-    { value: 'ASIA', label: 'Asia' },
-    { value: 'OTHER', label: 'Other' },
-  ];
-
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        width: '100%',
+        maxWidth: 800,
+        margin: '0 auto',
+      }}
+    >
       <Typography
-        variant="h2"
+        variant="h4"
         sx={{
-          fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3rem' },
-          fontFamily: '"McLaren", cursive',
           color: '#560D30',
-          textAlign: 'center',
-          mb: 4,
+          fontFamily: '"McLaren", cursive',
+          fontWeight: 400,
+          fontSize: '48px',
           textTransform: 'capitalize',
+          textAlign: 'center',
+          mb: 2,
         }}
       >
-        {title}
+        {submitText === 'Save' ? 'Edit TradeAd' : 'Create TradeAd'}
       </Typography>
 
-      <Grid container spacing={3}>
-        {/* Photo Upload */}
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-            <Typography
-              sx={{
-                color: '#852654',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Photo:
-            </Typography>
-            <ImageUpload
-              initialImage={formData.photo}
-              onImageUpload={(file) => handleChange('photo', file)}
-              error={errors.photo}
-            />
-          </Box>
-          {errors.photo && (
-            <Typography color="error" sx={{ fontSize: '12px', ml: 12 }}>
-              {errors.photo}
-            </Typography>
-          )}
-        </Grid>
-
-        {/* Title */}
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#852654',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Title:
-            </Typography>
-            <TextField
-              name="title"
-              value={formData.title}
-              onChange={handleTextChange}
-              fullWidth
-              required
-              error={!!errors.title}
-              helperText={errors.title}
-              sx={{
-                '& .MuiOutlinedInput-root': {
+      {/* Загрузка фото */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#852654', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 66,
+            pt: 1,
+          }}
+        >
+          Photo:
+        </Typography>
+        
+        <Box sx={{ position: 'relative', width: 355, height: 355 }}>
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '10px',
+              border: '1px dashed #EC2EA6',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              cursor: 'pointer',
+              overflow: 'hidden',
+              position: 'relative',
+              bgcolor: photoPreview ? 'transparent' : '#F8F8F8',
+            }}
+            onClick={() => document.getElementById('photo-upload')?.click()}
+          >
+            {photoPreview ? (
+              <img
+                src={photoPreview}
+                alt="Preview"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
                   borderRadius: '10px',
-                  backgroundColor: 'white',
-                  '& fieldset': {
-                    borderColor: errors.title ? '#FF4C4C' : '#EC2EA6',
-                  },
-                },
-              }}
-            />
+                }}
+              />
+            ) : (
+              <>
+                <img
+                  src="/assets/attach.svg"
+                  alt="Attach photo"
+                  style={{ width: 35, height: 35, marginBottom: 2 }}
+                />
+                <Typography
+                  sx={{
+                    color: '#560D30',
+                    fontFamily: '"Nobile", sans-serif',
+                    fontSize: '14px',
+                    mt: 1,
+                  }}
+                >
+                  Click to upload photo
+                </Typography>
+              </>
+            )}
           </Box>
-        </Grid>
+          <input
+            id="photo-upload"
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            style={{ display: 'none' }}
+          />
+        </Box>
+      </Box>
 
-        {/* Description */}
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#852654',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-                mt: 1,
-              }}
-            >
-              Description:
-            </Typography>
-            <TextField
-              name="description"
-              value={formData.description}
-              onChange={handleTextChange}
-              fullWidth
-              multiline
-              rows={4}
-              required
-              error={!!errors.description}
-              helperText={errors.description}
-              sx={{
-                '& .MuiOutlinedInput-root': {
+      {/* Название */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#852654', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 66,
+          }}
+        >
+          Name:
+        </Typography>
+        <TextField
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          fullWidth
+          required
+          sx={{
+            maxWidth: 378,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              '& fieldset': {
+                borderColor: '#EC2EA6',
+              },
+              '&:hover fieldset': {
+                borderColor: '#F056B7',
+              },
+            },
+          }}
+        />
+      </Box>
+
+      {/* Описание */}
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#852654', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 66,
+            pt: 1,
+          }}
+        >
+          Description:
+        </Typography>
+        <TextField
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          multiline
+          rows={4}
+          fullWidth
+          sx={{
+            maxWidth: 378,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              '& fieldset': {
+                borderColor: '#EC2EA6',
+              },
+              '&:hover fieldset': {
+                borderColor: '#F056B7',
+              },
+            },
+          }}
+        />
+      </Box>
+
+      {/* Condition */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#82164A', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 83,
+          }}
+        >
+          Condition:
+        </Typography>
+        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
+          <Select
+            name="condition"
+            value={formData.condition}
+            onChange={handleSelectChange}
+            sx={{
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              border: '1px solid #F056B7',
+              height: '40px',
+              '& .MuiSelect-select': {
+                padding: '10px 32px 10px 16px',
+              },
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
                   borderRadius: '10px',
-                  backgroundColor: 'white',
-                  '& fieldset': {
-                    borderColor: errors.description ? '#FF4C4C' : '#EC2EA6',
-                  },
+                  marginTop: '8px',
+                  border: '1px solid #EC2EA6',
                 },
-              }}
-            />
-          </Box>
-        </Grid>
+              },
+            }}
+          >
+            <MenuItem value="MINT">Mint</MenuItem>
+            <MenuItem value="TLC">Needs TLC</MenuItem>
+            <MenuItem value="GOOD">Good</MenuItem>
+            <MenuItem value="NIB">New in Box</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* Location */}
-        <Grid item xs={12}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#82164A',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Location:
-            </Typography>
-            <TextField
-              name="location"
-              value={formData.location}
-              onChange={handleTextChange}
-              fullWidth
-              required
-              error={!!errors.location}
-              helperText={errors.location}
-              sx={{
-                '& .MuiOutlinedInput-root': {
+      {/* Series */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#82164A', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 83,
+          }}
+        >
+          Series:
+        </Typography>
+        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
+          <Select
+            name="series"
+            value={formData.series}
+            onChange={handleSelectChange}
+            sx={{
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              border: '1px solid #F056B7',
+              height: '40px',
+              '& .MuiSelect-select': {
+                padding: '10px 32px 10px 16px',
+              },
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
                   borderRadius: '10px',
-                  backgroundColor: 'white',
-                  '& fieldset': {
-                    borderColor: errors.location ? '#FF4C4C' : '#EC2EA6',
-                  },
+                  marginTop: '8px',
+                  border: '1px solid #EC2EA6',
                 },
-              }}
-              placeholder="City, Country"
-            />
-          </Box>
-        </Grid>
+              },
+            }}
+          >
+            <MenuItem value="G2">G2</MenuItem>
+            <MenuItem value="G3">G3</MenuItem>
+            <MenuItem value="G4">G4</MenuItem>
+            <MenuItem value="G5">G5</MenuItem>
+            <MenuItem value="G6">G6</MenuItem>
+            <MenuItem value="G7">G7</MenuItem>
+            <MenuItem value="OTHER">Other</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* Condition */}
-        <Grid item xs={12} sm={6}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#82164A',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Condition:
-            </Typography>
-            <FilterSelect
-              label=""
-              value={formData.condition}
-              options={conditionOptions}
-              onChange={(value) => handleChange('condition', value)}
-              fullWidth
-            />
-          </Box>
-        </Grid>
+      {/* Region */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#82164A', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 83,
+          }}
+        >
+          Region:
+        </Typography>
+        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
+          <Select
+            name="region"
+            value={formData.region}
+            onChange={handleSelectChange}
+            sx={{
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              border: '1px solid #F056B7',
+              height: '40px',
+              '& .MuiSelect-select': {
+                padding: '10px 32px 10px 16px',
+              },
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  borderRadius: '10px',
+                  marginTop: '8px',
+                  border: '1px solid #EC2EA6',
+                },
+              },
+            }}
+          >
+            <MenuItem value="USA">USA</MenuItem>
+            <MenuItem value="EU">Europe</MenuItem>
+            <MenuItem value="CIS">CIS</MenuItem>
+            <MenuItem value="ASIA">Asia</MenuItem>
+            <MenuItem value="OTHER">Other</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
-        {/* Series */}
-        <Grid item xs={12} sm={6}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#82164A',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Series:
-            </Typography>
-            <FilterSelect
-              label=""
-              value={formData.series}
-              options={seriesOptions}
-              onChange={(value) => handleChange('series', value)}
-              fullWidth
-            />
-          </Box>
-        </Grid>
-
-        {/* Region */}
-        <Grid item xs={12} sm={6}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Typography
-              sx={{
-                color: '#82164A',
-                fontSize: '16px',
-                fontFamily: '"Nobile", sans-serif',
-                minWidth: 80,
-              }}
-            >
-              Region:
-            </Typography>
-            <FilterSelect
-              label=""
-              value={formData.region}
-              options={regionOptions}
-              onChange={(value) => handleChange('region', value)}
-              fullWidth
-            />
-          </Box>
-        </Grid>
-      </Grid>
-
-      {/* Buttons */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 3,
-          mt: 4,
-        }}
-      >
+      {/* Кнопки */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 4 }}>
         <Button
           type="submit"
-          variant="contained"
           disabled={loading}
+          variant="contained"
           sx={{
             backgroundColor: '#560D30',
             color: '#FFF6F9',
-            fontSize: '16px',
+            borderRadius: '10px',
+            padding: '12px 35px',
             fontFamily: '"McLaren", cursive',
             fontWeight: 400,
-            padding: '12px 35px',
-            borderRadius: '10px',
-            minWidth: '120px',
+            textTransform: 'none',
+            fontSize: '16px',
             '&:hover': {
               backgroundColor: '#82164A',
             },
             '&:disabled': {
-              backgroundColor: 'rgba(86, 13, 48, 0.5)',
+              backgroundColor: '#CCCCCC',
             },
           }}
         >
-          {loading ? <CircularProgress size={24} sx={{ color: '#FFF6F9' }} /> : submitText}
+          {loading ? 'Saving...' : submitText}
         </Button>
-        
         <Button
-          type="button"
-          variant="outlined"
           onClick={onCancel}
-          disabled={loading}
+          variant="outlined"
           sx={{
-            borderColor: '#560D30',
             color: '#560D30',
-            fontSize: '16px',
+            border: '1px solid #560D30',
+            borderRadius: '10px',
+            padding: '12px 35px',
             fontFamily: '"McLaren", cursive',
             fontWeight: 400,
-            padding: '12px 35px',
-            borderRadius: '10px',
-            minWidth: '120px',
+            textTransform: 'none',
+            fontSize: '16px',
             '&:hover': {
-              borderColor: '#82164A',
-              color: '#82164A',
-            },
-            '&:disabled': {
-              borderColor: 'rgba(86, 13, 48, 0.5)',
-              color: 'rgba(86, 13, 48, 0.5)',
+              backgroundColor: 'rgba(86, 13, 48, 0.1)',
+              border: '1px solid #560D30',
             },
           }}
         >

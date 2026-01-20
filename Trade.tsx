@@ -18,7 +18,8 @@ const Trade: React.FC = () => {
     series: 'ALL',
     condition: 'ALL',
     region: 'ALL',
-    view: 'ALL' // 'ALL' или 'MINE'
+    view: 'ALL',
+    sort: 'newest' // Добавляем сортировку
   });
   const [pagination, setPagination] = useState({
     page: 1,
@@ -33,17 +34,21 @@ const Trade: React.FC = () => {
     return userStr ? JSON.parse(userStr) : null;
   };
 
-  const fetchAds = async () => {
+   const fetchAds = async () => {
     setLoading(true);
     try {
       let response: any;
       
       if (filters.view === 'MINE') {
         response = await tradeAPI.getMyAds();
-        setAds(response.data || []);
+        let adsData = response.data || [];
+        
+        // Применяем сортировку локально для "моих" объявлений
+        adsData = sortAds(adsData, filters.sort);
+        setAds(adsData);
         setPagination(prev => ({ 
           ...prev, 
-          total: (response.data || []).length, 
+          total: adsData.length, 
           pages: 1 
         }));
       } else {
@@ -53,7 +58,8 @@ const Trade: React.FC = () => {
           series: filters.series !== 'ALL' ? filters.series : undefined,
           condition: filters.condition !== 'ALL' ? filters.condition : undefined,
           region: filters.region !== 'ALL' ? filters.region : undefined,
-          search: filters.search || undefined
+          search: filters.search || undefined,
+          sort: filters.sort // Передаем сортировку на сервер
         });
         
         setAds(response.data?.ads || []);
@@ -68,6 +74,34 @@ const Trade: React.FC = () => {
       setAds([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Функция сортировки (для локальной сортировки "моих" объявлений)
+  const sortAds = (ads: any[], sortType: string) => {
+    const sorted = [...ads];
+    switch (sortType) {
+      case 'newest':
+        return sorted.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      case 'oldest':
+        return sorted.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+      case 'condition':
+        // Сортируем по условию: MINT > NIB > GOOD > TLC
+        const conditionOrder = { MINT: 4, NIB: 3, GOOD: 2, TLC: 1 };
+        return sorted.sort((a, b) => 
+          (conditionOrder[b.condition as keyof typeof conditionOrder] || 0) - 
+          (conditionOrder[a.condition as keyof typeof conditionOrder] || 0)
+        );
+      case 'series':
+        return sorted.sort((a, b) => 
+          (a.figurine?.series || '').localeCompare(b.figurine?.series || '')
+        );
+      default:
+        return sorted;
     }
   };
 

@@ -1,55 +1,73 @@
-// client/src/components/ui/FilterSelect
+// client/src/components/ui/SortSelect
 import React from 'react';
 import { 
   Select, 
   MenuItem, 
   FormControl,
-  SelectChangeEvent, 
+  SelectChangeEvent,
   Box,
 } from '@mui/material';
 
-interface FilterSelectProps {
-  label: string;
+interface SortSelectProps {
   value: string;
-  options: { value: string; label: string }[];
   onChange: (value: string) => void;
   size?: 'small' | 'medium';
-  disabled?: boolean;
+  fullWidth?: boolean;
+  placeholder?: string;
 }
 
-const FilterSelect: React.FC<FilterSelectProps> = ({
-  label,
+const SortSelect: React.FC<SortSelectProps> = ({
   value,
-  options,
   onChange,
   size = 'small',
-  disabled = false,
+  fullWidth = false,
+  placeholder = 'Sort by',
 }) => {
   const handleChange = (event: SelectChangeEvent) => {
     onChange(event.target.value);
   };
 
+  const sortOptions = [
+    { value: 'newest', label: 'Newest' },
+    { value: 'oldest', label: 'Oldest' },
+    { value: 'condition', label: 'By Condition' },
+    { value: 'series', label: 'By Series' },
+  ];
+
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      {/* Лейбл */}
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: 1,
+      width: fullWidth ? '100%' : 'auto',
+    }}>
+      {/* Иконка сортировки */}
       <Box 
         sx={{ 
-          color: '#82164A', 
-          fontSize: '15px',
-          fontFamily: '"Nobile", sans-serif',
-          fontWeight: 400,
-          whiteSpace: 'nowrap',
+          width: 30, 
+          height: 30, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
-        {label}
+        <img 
+          src="/assets/sort.svg" 
+          alt="Sort" 
+          style={{ 
+            width: '100%', 
+            height: '100%',
+          }} 
+        />
       </Box>
 
       {/* Выпадающий список */}
       <FormControl 
         size={size} 
-        disabled={disabled}
         sx={{ 
-          minWidth: 109,
+          minWidth: 180,
+          flex: 1,
           '& .MuiOutlinedInput-root': {
             height: 30,
             borderRadius: '10px',
@@ -61,6 +79,7 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
         <Select
           value={value}
           onChange={handleChange}
+          displayEmpty
           sx={{
             borderRadius: '10px',
             '& .MuiOutlinedInput-notchedOutline': {
@@ -99,7 +118,10 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
             },
           }}
         >
-          {options.map((option) => (
+          <MenuItem value="" disabled>
+            <span style={{ color: '#852654', fontStyle: 'normal' }}>{placeholder}</span>
+          </MenuItem>
+          {sortOptions.map((option) => (
             <MenuItem key={option.value} value={option.value}>
               {option.label}
             </MenuItem>
@@ -110,4 +132,4 @@ const FilterSelect: React.FC<FilterSelectProps> = ({
   );
 };
 
-export default FilterSelect;
+export default SortSelect;

@@ -1,12 +1,11 @@
 // client/src/pages/Trade/components/TradeFilters.tsx
 import React, { useState } from 'react';
 import { Box, Button } from '@mui/material';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import AddIcon from '@mui/icons-material/Add';
-import ToggleSwitch from '../../../components/ui/ToggleSwitch';
 import SearchInput from '../../../components/ui/SearchInput';
-import FilterSelect from '../../../components/ui/FilterSelect';
+import SortSelect from '../../../components/ui/SortSelect';
+import ToggleSwitch from '../../../components/ui/ToggleSwitch';
 import SeriesFilter from '../../../components/ui/SeriesFilter';
+import FilterSelect from '../../../components/ui/FilterSelect';
 import Modal from '../../../components/ui/Modal';
 import TradeAdForm from '../../../components/forms/TradeAdForm';
 
@@ -17,6 +16,7 @@ interface TradeFiltersProps {
     condition: string;
     region: string;
     view: string;
+    sort: string;
   };
   onFilterChange: (filters: any) => void;
   onCreateAd?: (data: any) => Promise<void>;
@@ -27,17 +27,12 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
   onFilterChange,
   onCreateAd,
 }) => {
-  const [localFilters, setLocalFilters] = useState(filters);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...localFilters, [key]: value };
-    setLocalFilters(newFilters);
-  };
-
-  const handleApplyFilters = () => {
-    onFilterChange(localFilters);
+    const newFilters = { ...filters, [key]: value };
+    onFilterChange(newFilters);
   };
 
   const handleCreateAd = async (data: any) => {
@@ -77,7 +72,7 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 3,
+          gap: 2,
           mb: 4,
           padding: { xs: 2, sm: 3 },
           background: 'rgba(255, 255, 255, 0.42)',
@@ -85,7 +80,7 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
         }}
       >
-        {/* First Row: Search and Controls */}
+        {/* Первая строка: поиск, сортировка, переключатель, кнопка */}
         <Box
           sx={{
             display: 'flex',
@@ -95,51 +90,61 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
             justifyContent: 'space-between',
           }}
         >
-          <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
+          {/* Поиск и сортировка */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            flex: 1,
+            flexWrap: { xs: 'wrap', md: 'nowrap' },
+          }}>
             <SearchInput
-              placeholder="Search by title, description..."
-              value={localFilters.search}
+              placeholder="Search..."
+              value={filters.search}
               onChange={(value) => handleFilterChange('search', value)}
-              onSearch={handleApplyFilters}
               fullWidth
-              size="medium"
+              size="small"
             />
-
-            <FilterSelect
-              label=""
-              value={localFilters.series}
-              options={[
-                { value: 'ALL', label: 'All Series' },
-                ...seriesOptions.map(s => ({ value: s, label: s }))
-              ]}
-              onChange={(value) => handleFilterChange('series', value)}
-              size="medium"
+            
+            <SortSelect
+              value={filters.sort || 'newest'}
+              onChange={(value) => handleFilterChange('sort', value)}
+              size="small"
             />
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          {/* Переключатель All/Mine и кнопка создания */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            flexWrap: { xs: 'wrap', sm: 'nowrap' },
+          }}>
             <ToggleSwitch
               options={[
                 { value: 'ALL', label: 'All' },
                 { value: 'MINE', label: 'Mine' },
               ]}
-              value={localFilters.view}
-              onChange={(value) => {
-                handleFilterChange('view', value);
-                handleApplyFilters();
-              }}
+              value={filters.view}
+              onChange={(value) => handleFilterChange('view', value)}
               variant="outlined"
+              size="small"
             />
 
             <Button
               variant="contained"
-              startIcon={<AddIcon />}
               onClick={() => setCreateModalOpen(true)}
               sx={{
                 backgroundColor: '#EC2EA6',
                 color: 'white',
                 borderRadius: '10px',
                 fontFamily: '"McLaren", cursive',
+                fontWeight: 400,
+                textTransform: 'none',
+                padding: '6px 16px',
+                height: '38px',
+                whiteSpace: 'nowrap',
+                minWidth: '140px',
                 '&:hover': {
                   backgroundColor: '#F056B7',
                 },
@@ -150,19 +155,21 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
           </Box>
         </Box>
 
-        {/* Second Row: Series Filter */}
-        <SeriesFilter
-          series={seriesOptions}
-          selectedSeries={localFilters.series === 'ALL' ? '' : localFilters.series}
-          onSeriesChange={(series) => {
-            handleFilterChange('series', series);
-            handleApplyFilters();
-          }}
-          variant="buttons"
-          fullWidth
-        />
+        {/* Вторая строка: фильтр по сериям */}
+        <Box sx={{ width: '100%' }}>
+          <SeriesFilter
+            series={seriesOptions}
+            selectedSeries={filters.series === 'ALL' ? '' : filters.series}
+            onSeriesChange={(series) => {
+              handleFilterChange('series', series === filters.series ? 'ALL' : series);
+            }}
+            variant="buttons"
+            fullWidth
+            size="small"
+          />
+        </Box>
 
-        {/* Third Row: Condition and Region Filters */}
+        {/* Третья строка: Condition и Region */}
         <Box
           sx={{
             display: 'flex',
@@ -172,10 +179,15 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
             justifyContent: 'space-between',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2,
+            flexWrap: 'wrap',
+          }}>
             <FilterSelect
               label="Condition:"
-              value={localFilters.condition}
+              value={filters.condition}
               options={conditionOptions}
               onChange={(value) => handleFilterChange('condition', value)}
               size="small"
@@ -183,46 +195,32 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
 
             <FilterSelect
               label="Region:"
-              value={localFilters.region}
+              value={filters.region}
               options={regionOptions}
               onChange={(value) => handleFilterChange('region', value)}
               size="small"
             />
           </Box>
-
-          <Button
-            variant="contained"
-            startIcon={<FilterListIcon />}
-            onClick={handleApplyFilters}
-            sx={{
-              backgroundColor: '#560D30',
-              color: 'white',
-              borderRadius: '10px',
-              fontFamily: '"McLaren", cursive',
-              '&:hover': {
-                backgroundColor: '#82164A',
-              },
-            }}
-          >
-            Apply Filters
-          </Button>
         </Box>
       </Box>
 
-      {/* Create TradeAd Modal */}
+      {/* Модальное окно создания объявления */}
       <Modal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title="Create TradeAd"
         maxWidth="md"
         blurBackground
+        padding={0}
       >
-        <TradeAdForm
-          onSubmit={handleCreateAd}
-          onCancel={() => setCreateModalOpen(false)}
-          loading={loading}
-          submitText="Create TradeAd"
-        />
+        <Box sx={{ padding: 4 }}>
+          <TradeAdForm
+            onSubmit={handleCreateAd}
+            onCancel={() => setCreateModalOpen(false)}
+            loading={loading}
+            submitText="Create TradeAd"
+          />
+        </Box>
       </Modal>
     </>
   );
