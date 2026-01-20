@@ -76,6 +76,7 @@ export const tradeAPI = {
     condition?: string;
     region?: string;
     search?: string;
+    sort?: string; // Добавляем сортировку
   }) => api.get<{ ads: TradeAdWithDetails[]; total: number; page: number; pages: number }>('/trade-ads', { params }),
   createAd: (data: any) => api.post<TradeAd>('/trade-ads', data),
   getAdById: (id: string) => api.get<TradeAdWithDetails>(`/trade-ads/${id}`),
