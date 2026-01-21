@@ -5,6 +5,8 @@ import {
   Typography,
   Button,
   TextField,
+  Avatar,
+  Rating,
 } from '@mui/material';
 import Modal from '../ui/Modal';
 import { TradeAdWithDetails } from '../../services/types';
@@ -24,15 +26,17 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    // Здесь будет логика отправки предложения обмена
     setLoading(true);
     try {
       console.log('Sending offer for ad:', ad.id, 'Message:', message);
-      // TODO: Вызов API для отправки предложения
+      // TODO: Реализовать API для отправки предложения
+      // В будущем это будет вести в приватный чат
       setTimeout(() => {
         setLoading(false);
         onClose();
         setMessage('');
+        // Показываем уведомление об успехе
+        alert('Trade offer sent! You will be redirected to private chat once it\'s implemented.');
       }, 1000);
     } catch (error) {
       console.error('Error sending offer:', error);
@@ -44,45 +48,98 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
     <Modal
       open={open}
       onClose={onClose}
-      title="Make an Offer"
-      maxWidth="sm"
+      title="Make a Trade Offer"
+      maxWidth="md"
       blurBackground
     >
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {/* Информация о объявлении */}
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Box
-            component="img"
-            src={ad.photo || '/assets/default-figurine.png'}
-            alt={ad.title}
+        {/* Информация о сделке */}
+        <Box sx={{ 
+          backgroundColor: 'rgba(240, 94, 186, 0.1)', 
+          borderRadius: '10px', 
+          padding: 2 
+        }}>
+          <Typography
             sx={{
-              width: 80,
-              height: 80,
-              borderRadius: '10px',
-              objectFit: 'cover',
+              color: '#560D30',
+              fontFamily: '"McLaren", cursive',
+              fontSize: '18px',
+              mb: 1,
+              textAlign: 'center',
             }}
-          />
-          <Box>
-            <Typography
+          >
+            You are making an offer to {ad.user?.username}
+          </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              component="img"
+              src={ad.photo || '/assets/default-figurine.png'}
+              alt={ad.title}
               sx={{
-                color: '#560D30',
-                fontFamily: '"McLaren", cursive',
-                fontSize: '18px',
-                mb: 0.5,
+                width: 80,
+                height: 80,
+                borderRadius: '10px',
+                objectFit: 'cover',
               }}
-            >
-              {ad.title}
-            </Typography>
-            <Typography
-              sx={{
-                color: '#882253',
-                fontFamily: '"Nobile", sans-serif',
-                fontSize: '14px',
-              }}
-            >
-              Condition: {ad.condition} | Series: {ad.figurine?.series}
-            </Typography>
+            />
+            <Box sx={{ flex: 1 }}>
+              <Typography
+                sx={{
+                  color: '#560D30',
+                  fontFamily: '"McLaren", cursive',
+                  fontSize: '16px',
+                  mb: 0.5,
+                }}
+              >
+                {ad.title}
+              </Typography>
+              <Typography
+                sx={{
+                  color: '#882253',
+                  fontFamily: '"Nobile", sans-serif',
+                  fontSize: '14px',
+                }}
+              >
+                Condition: {ad.condition} | Series: {ad.figurine?.series}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                <Rating
+                  value={ad.user?.profile?.rating || 0}
+                  precision={0.5}
+                  readOnly
+                  size="small"
+                  sx={{ color: '#EC2EA6' }}
+                />
+                <Typography
+                  sx={{
+                    color: '#882253',
+                    fontFamily: '"Nobile", sans-serif',
+                    fontSize: '12px',
+                  }}
+                >
+                  {ad.user?.profile?.rating?.toFixed(1) || '0.0'}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
+        </Box>
+
+        {/* Инструкция */}
+        <Box>
+          <Typography
+            sx={{
+              color: '#560D30',
+              fontFamily: '"Nobile", sans-serif',
+              fontSize: '14px',
+              mb: 2,
+              textAlign: 'center',
+              fontStyle: 'italic',
+            }}
+          >
+            Send a message to {ad.user?.username} to start negotiating the trade.
+            Once accepted, you'll be connected in a private chat.
+          </Typography>
         </Box>
 
         {/* Сообщение */}
@@ -95,14 +152,14 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
               mb: 1,
             }}
           >
-            Your message to {ad.user?.username}:
+            Your offer message:
           </Typography>
           <TextField
             multiline
-            minRows={4}
+            minRows={5}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write your offer message here..."
+            placeholder={`Hi ${ad.user?.username}! I'm interested in your ${ad.title}. I'd like to offer...`}
             fullWidth
             sx={{
               '& .MuiOutlinedInput-root': {
@@ -128,8 +185,56 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
           />
         </Box>
 
+        {/* Подсказки */}
+        <Box sx={{ 
+          backgroundColor: 'rgba(255, 241, 248, 0.5)', 
+          borderRadius: '10px', 
+          padding: 2 
+        }}>
+          <Typography
+            sx={{
+              color: '#882253',
+              fontFamily: '"Nobile", sans-serif',
+              fontSize: '14px',
+              fontWeight: 600,
+              mb: 1,
+            }}
+          >
+            Tips for a good offer:
+          </Typography>
+          <Typography
+            sx={{
+              color: '#560D30',
+              fontFamily: '"Nobile", sans-serif',
+              fontSize: '13px',
+              mb: 0.5,
+            }}
+          >
+            • Be specific about what you're offering in return
+          </Typography>
+          <Typography
+            sx={{
+              color: '#560D30',
+              fontFamily: '"Nobile", sans-serif',
+              fontSize: '13px',
+              mb: 0.5,
+            }}
+          >
+            • Mention the condition of your items
+          </Typography>
+          <Typography
+            sx={{
+              color: '#560D30',
+              fontFamily: '"Nobile", sans-serif',
+              fontSize: '13px',
+            }}
+          >
+            • Propose a meeting location or shipping method
+          </Typography>
+        </Box>
+
         {/* Кнопки */}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
           <Button
             onClick={onClose}
             variant="outlined"
@@ -140,6 +245,7 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
               fontFamily: '"McLaren", cursive',
               fontWeight: 400,
               textTransform: 'none',
+              flex: 1,
               '&:hover': {
                 borderColor: '#560D30',
                 backgroundColor: 'rgba(86, 13, 48, 0.1)',
@@ -159,6 +265,7 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
               fontFamily: '"McLaren", cursive',
               fontWeight: 400,
               textTransform: 'none',
+              flex: 2,
               '&:hover': {
                 backgroundColor: '#F056B7',
               },
@@ -167,7 +274,7 @@ const OfferTradeModal: React.FC<OfferTradeModalProps> = ({
               },
             }}
           >
-            {loading ? 'Sending...' : 'Send Offer'}
+            {loading ? 'Sending Offer...' : 'Send Offer & Start Chat'}
           </Button>
         </Box>
       </Box>

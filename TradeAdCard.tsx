@@ -6,20 +6,19 @@ import {
   IconButton,
 } from '@mui/material';
 import { TradeAdWithDetails } from '../../services/types';
-import OfferTradeModal from './OfferTradeModal';
+import TradeAdDetailsModal from './TradeAdDetailsModal';
 
+// Упрощаем интерфейс, оставляем только ad
 interface TradeAdCardProps {
   ad: TradeAdWithDetails;
-  isOwner?: boolean;
-  onDelete?: (id: string) => Promise<void>;
-  onUpdate?: (id: string, data: any) => Promise<void>;
 }
 
 const TradeAdCard: React.FC<TradeAdCardProps> = ({ ad }) => {
-  const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const handleOfferTrade = () => {
-    setOfferModalOpen(true);
+  const handleDetailsClick = () => {
+    setDetailsModalOpen(true);
   };
 
   return (
@@ -44,7 +43,12 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({ ad }) => {
             objectFit: 'cover',
             borderRadius: '10px',
             backgroundColor: '#f5f5f5',
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.9,
+            },
           }}
+          onClick={handleDetailsClick}
         />
 
         {/* Информация и кнопка Offer trade */}
@@ -98,22 +102,23 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({ ad }) => {
 
           {/* Кнопка Offer trade */}
           <IconButton
-            onClick={handleOfferTrade}
+            onClick={handleDetailsClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             sx={{
               width: 60,
               height: 60,
-              backgroundColor: '#F05EBA',
               borderRadius: '50%',
               flexShrink: 0,
+              transition: 'all 0.2s ease',
+              padding: 0,
               '&:hover': {
-                backgroundColor: '#F056B7',
+                transform: 'scale(1.05)',
               },
             }}
           >
-            {/* Крестик (плюс) - белый */}
             <Box
               sx={{
-                position: 'relative',
                 width: '100%',
                 height: '100%',
                 display: 'flex',
@@ -121,24 +126,17 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({ ad }) => {
                 justifyContent: 'center',
               }}
             >
-              {/* Горизонтальная линия */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  width: '70%',
-                  height: '4px',
-                  backgroundColor: 'white',
-                  borderRadius: '2px',
-                }}
-              />
-              {/* Вертикальная линия */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  width: '4px',
-                  height: '70%',
-                  backgroundColor: 'white',
-                  borderRadius: '2px',
+              <img
+                src={isHovered 
+                  ? '/assets/offer-trade-active.svg' 
+                  : '/assets/offer-trade-default.svg'
+                }
+                alt="Offer trade"
+                style={{ 
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  transition: 'all 0.2s ease',
                 }}
               />
             </Box>
@@ -146,10 +144,10 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({ ad }) => {
         </Box>
       </Box>
 
-      {/* Модальное окно Offer trade */}
-      <OfferTradeModal
-        open={offerModalOpen}
-        onClose={() => setOfferModalOpen(false)}
+      {/* Модальное окно с деталями объявления */}
+      <TradeAdDetailsModal
+        open={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
         ad={ad}
       />
     </>
