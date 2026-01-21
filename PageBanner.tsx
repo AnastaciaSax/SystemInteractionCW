@@ -1,7 +1,7 @@
 // src/components/PageBanner.tsx
 import React from 'react';
 import { Box, Container, Typography, Breadcrumbs, Link } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
 import HomeIcon from '@mui/icons-material/Home';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
@@ -9,23 +9,44 @@ interface PageBannerProps {
   title: string;
   breadcrumbs: Array<{ label: string; path?: string }>;
   background?: string;
+  imageUrl?: string;
 }
 
 const PageBanner: React.FC<PageBannerProps> = ({ 
   title, 
   breadcrumbs, 
-  background = 'linear-gradient(180deg, #F6C4D4 0%, #96F2F7 100%)' 
+  background,
+  imageUrl
 }) => {
+  const location = useLocation();
+  
+  // Определяем фоновое изображение в зависимости от страницы
+  const getBackgroundImage = () => {
+    if (imageUrl) return `url(${imageUrl})`;
+    
+    switch (location.pathname) {
+      case '/trade':
+        return 'url(/assets/banner-trade.png)';
+      // Можно добавить другие страницы по мере необходимости
+      default:
+        return 'linear-gradient(180deg, #F6C4D4 0%, #96F2F7 100%)';
+    }
+  };
+
   return (
     <Box
       sx={{
-        background,
+        backgroundImage: getBackgroundImage(),
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         height: { xs: '200px', sm: '250px', md: '276px' },
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'flex-end',
         position: 'relative',
         width: '100%',
+        ...(background && { background }),
       }}
     >
       <Container
