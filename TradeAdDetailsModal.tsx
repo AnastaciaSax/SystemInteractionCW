@@ -16,7 +16,6 @@ import MessageIcon from '@mui/icons-material/Message';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { TradeAdWithDetails } from '../../services/types';
-import OfferTradeModal from './OfferTradeModal';
 
 interface TradeAdDetailsModalProps {
   open: boolean;
@@ -345,13 +344,6 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
           </Box>
         </Box>
       </Box>
-
-      {/* Модальное окно для предложения обмена */}
-      <OfferTradeModal
-        open={offerModalOpen}
-        onClose={() => setOfferModalOpen(false)}
-        ad={ad}
-      />
     </Box>
   );
 };

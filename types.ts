@@ -87,6 +87,7 @@ export interface TradeAdWithDetails extends TradeAd {
   user: {
     id: string;
     username: string;
+    region?: string; // Добавляем регион пользователя
     profile?: {
       avatar: string;
       rating: number;

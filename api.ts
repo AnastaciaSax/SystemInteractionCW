@@ -76,12 +76,23 @@ export const tradeAPI = {
     condition?: string;
     region?: string;
     search?: string;
-    sort?: string; // Добавляем сортировку
+    sort?: string;
   }) => api.get<{ ads: TradeAdWithDetails[]; total: number; page: number; pages: number }>('/trade-ads', { params }),
-  createAd: (data: any) => api.post<TradeAd>('/trade-ads', data),
+  
+  createAd: (data: FormData) => 
+    api.post<TradeAd>('/trade-ads', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  
   getAdById: (id: string) => api.get<TradeAdWithDetails>(`/trade-ads/${id}`),
-  updateAd: (id: string, data: any) => api.put<TradeAd>(`/trade-ads/${id}`, data),
+  
+  updateAd: (id: string, data: FormData) => 
+    api.put<TradeAd>(`/trade-ads/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  
   deleteAd: (id: string) => api.delete<{ success: boolean }>(`/trade-ads/${id}`),
+  
   getMyAds: () => api.get<TradeAdWithDetails[]>('/trade-ads/my'),
 };
 

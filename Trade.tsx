@@ -118,18 +118,18 @@ const Trade: React.FC = () => {
     setPagination(prev => ({ ...prev, page }));
   };
 
-  const handleCreateAd = async (data: any) => {
-    try {
-      const response = await tradeAPI.createAd(data);
-      if (response.data) {
-        fetchAds(); // Обновляем список
-        return Promise.resolve();
-      }
-    } catch (error) {
-      console.error('Error creating ad:', error);
-      return Promise.reject(error);
+const handleCreateAd = async (data: FormData) => {
+  try {
+    const response = await tradeAPI.createAd(data);
+    if (response.data) {
+      fetchAds(); // Обновляем список
+      return Promise.resolve();
     }
-  };
+  } catch (error) {
+    console.error('Error creating ad:', error);
+    return Promise.reject(error);
+  }
+};
 
   const handleDeleteAd = async (id: string) => {
     try {
@@ -140,14 +140,14 @@ const Trade: React.FC = () => {
     }
   };
 
-  const handleUpdateAd = async (id: string, data: any) => {
-    try {
-      await tradeAPI.updateAd(id, data);
-      fetchAds(); // Обновляем список
-    } catch (error) {
-      console.error('Error updating ad:', error);
-    }
-  };
+  const handleUpdateAd = async (id: string, data: FormData) => {
+  try {
+    await tradeAPI.updateAd(id, data);
+    fetchAds(); // Обновляем список
+  } catch (error) {
+    console.error('Error updating ad:', error);
+  }
+};
 
   // Проверяем, является ли текущий пользователь владельцем объявления
   const checkIsOwner = (ad: any) => {

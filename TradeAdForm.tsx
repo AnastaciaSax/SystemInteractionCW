@@ -1,5 +1,5 @@
 // client/src/components/forms/TradeAdForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -9,8 +9,9 @@ import {
   Select,
   MenuItem,
   InputLabel,
+  CircularProgress,
 } from '@mui/material';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { figurinesAPI } from '../../services/api';
 
 interface TradeAdFormProps {
   onSubmit: (data: any) => Promise<void>;
@@ -34,9 +35,30 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
     series: initialData.series || 'G2',
     region: initialData.region || 'USA',
     photo: initialData.photo || '',
+    figurineId: initialData.figurineId || '',
+    location: initialData.location || '',
   });
 
+  const [figurines, setFigurines] = useState<any[]>([]);
+  const [figurinesLoading, setFigurinesLoading] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState(initialData.photo || '');
+
+  useEffect(() => {
+    fetchFigurines();
+  }, []);
+
+  const fetchFigurines = async () => {
+    setFigurinesLoading(true);
+    try {
+      const response = await figurinesAPI.getAll();
+      setFigurines(response.data || []);
+    } catch (error) {
+      console.error('Error fetching figurines:', error);
+    } finally {
+      setFigurinesLoading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,11 +73,11 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setPhotoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         setPhotoPreview(result);
-        setFormData(prev => ({ ...prev, photo: result }));
       };
       reader.readAsDataURL(file);
     }
@@ -63,7 +85,19 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    
+    const formDataToSend = new FormData();
+    formDataToSend.append('title', formData.title);
+    formDataToSend.append('description', formData.description);
+    formDataToSend.append('condition', formData.condition);
+    formDataToSend.append('location', formData.location);
+    formDataToSend.append('figurineId', formData.figurineId);
+    
+    if (photoFile) {
+      formDataToSend.append('photo', photoFile);
+    }
+    
+    await onSubmit(formDataToSend);
   };
 
   return (
@@ -105,7 +139,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
             pt: 1,
           }}
         >
-          Photo:
+          Photo*:
         </Typography>
         
         <Box sx={{ position: 'relative', width: 355, height: 355 }}>
@@ -154,6 +188,15 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
                 >
                   Click to upload photo
                 </Typography>
+                <Typography
+                  sx={{
+                    color: '#882253',
+                    fontFamily: '"Nobile", sans-serif',
+                    fontSize: '12px',
+                  }}
+                >
+                  (Required)
+                </Typography>
               </>
             )}
           </Box>
@@ -177,7 +220,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
             minWidth: 66,
           }}
         >
-          Name:
+          Title*:
         </Typography>
         <TextField
           name="title"
@@ -212,7 +255,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
             pt: 1,
           }}
         >
-          Description:
+          Description*:
         </Typography>
         <TextField
           name="description"
@@ -221,6 +264,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
           multiline
           rows={4}
           fullWidth
+          required
           sx={{
             maxWidth: 378,
             '& .MuiOutlinedInput-root': {
@@ -237,6 +281,92 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
         />
       </Box>
 
+      {/* Location */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#852654', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 66,
+          }}
+        >
+          Location*:
+        </Typography>
+        <TextField
+          name="location"
+          value={formData.location}
+          onChange={handleChange}
+          fullWidth
+          required
+          placeholder="e.g., New York, USA"
+          sx={{
+            maxWidth: 378,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '10px',
+              backgroundColor: 'white',
+              '& fieldset': {
+                borderColor: '#EC2EA6',
+              },
+              '&:hover fieldset': {
+                borderColor: '#F056B7',
+              },
+            },
+          }}
+        />
+      </Box>
+
+      {/* Figurine Selection */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+        <Typography 
+          sx={{ 
+            color: '#82164A', 
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '16px',
+            minWidth: 83,
+          }}
+        >
+          Figurine*:
+        </Typography>
+        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
+          {figurinesLoading ? (
+            <CircularProgress size={24} sx={{ color: '#EC2EA6' }} />
+          ) : (
+            <Select
+              name="figurineId"
+              value={formData.figurineId}
+              onChange={handleSelectChange}
+              required
+              sx={{
+                borderRadius: '10px',
+                backgroundColor: 'white',
+                border: '1px solid #F056B7',
+                height: '40px',
+                '& .MuiSelect-select': {
+                  padding: '10px 32px 10px 16px',
+                },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    borderRadius: '10px',
+                    marginTop: '8px',
+                    border: '1px solid #EC2EA6',
+                    maxHeight: 300,
+                  },
+                },
+              }}
+            >
+              {figurines.map((figurine) => (
+                <MenuItem key={figurine.id} value={figurine.id}>
+                  {figurine.number} - {figurine.name} ({figurine.series})
+                </MenuItem>
+              ))}
+            </Select>
+          )}
+        </FormControl>
+      </Box>
+
       {/* Condition */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         <Typography 
@@ -247,13 +377,14 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
             minWidth: 83,
           }}
         >
-          Condition:
+          Condition*:
         </Typography>
         <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
           <Select
             name="condition"
             value={formData.condition}
             onChange={handleSelectChange}
+            required
             sx={{
               borderRadius: '10px',
               backgroundColor: 'white',
@@ -281,103 +412,11 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
         </FormControl>
       </Box>
 
-      {/* Series */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-        <Typography 
-          sx={{ 
-            color: '#82164A', 
-            fontFamily: '"Nobile", sans-serif',
-            fontSize: '16px',
-            minWidth: 83,
-          }}
-        >
-          Series:
-        </Typography>
-        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
-          <Select
-            name="series"
-            value={formData.series}
-            onChange={handleSelectChange}
-            sx={{
-              borderRadius: '10px',
-              backgroundColor: 'white',
-              border: '1px solid #F056B7',
-              height: '40px',
-              '& .MuiSelect-select': {
-                padding: '10px 32px 10px 16px',
-              },
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  borderRadius: '10px',
-                  marginTop: '8px',
-                  border: '1px solid #EC2EA6',
-                },
-              },
-            }}
-          >
-            <MenuItem value="G2">G2</MenuItem>
-            <MenuItem value="G3">G3</MenuItem>
-            <MenuItem value="G4">G4</MenuItem>
-            <MenuItem value="G5">G5</MenuItem>
-            <MenuItem value="G6">G6</MenuItem>
-            <MenuItem value="G7">G7</MenuItem>
-            <MenuItem value="OTHER">Other</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      {/* Region */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-        <Typography 
-          sx={{ 
-            color: '#82164A', 
-            fontFamily: '"Nobile", sans-serif',
-            fontSize: '16px',
-            minWidth: 83,
-          }}
-        >
-          Region:
-        </Typography>
-        <FormControl sx={{ maxWidth: 294, minWidth: 200 }}>
-          <Select
-            name="region"
-            value={formData.region}
-            onChange={handleSelectChange}
-            sx={{
-              borderRadius: '10px',
-              backgroundColor: 'white',
-              border: '1px solid #F056B7',
-              height: '40px',
-              '& .MuiSelect-select': {
-                padding: '10px 32px 10px 16px',
-              },
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  borderRadius: '10px',
-                  marginTop: '8px',
-                  border: '1px solid #EC2EA6',
-                },
-              },
-            }}
-          >
-            <MenuItem value="USA">USA</MenuItem>
-            <MenuItem value="EU">Europe</MenuItem>
-            <MenuItem value="CIS">CIS</MenuItem>
-            <MenuItem value="ASIA">Asia</MenuItem>
-            <MenuItem value="OTHER">Other</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
       {/* Кнопки */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 4 }}>
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || figurinesLoading}
           variant="contained"
           sx={{
             backgroundColor: '#560D30',
@@ -419,6 +458,18 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
           Cancel
         </Button>
       </Box>
+
+      <Typography
+        sx={{
+          color: '#882253',
+          fontFamily: '"Nobile", sans-serif',
+          fontSize: '12px',
+          textAlign: 'center',
+          mt: 2,
+        }}
+      >
+        * Required fields
+      </Typography>
     </Box>
   );
 };

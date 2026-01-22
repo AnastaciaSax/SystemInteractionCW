@@ -7,10 +7,10 @@ import {
 } from '@mui/material';
 import TradeAdCard from '../../../components/cards/TradeAdCard';
 import TradeAdSkeleton from '../../../components/cards/TradeAdSkeleton'; 
-import { TradeAdWithDetails } from '../../../services/types'; // Добавляем импорт типа
+import { TradeAdWithDetails } from '../../../services/types';
 
 interface TradeAdListProps {
-  ads: TradeAdWithDetails[]; // Используем конкретный тип
+  ads: TradeAdWithDetails[];
   loading: boolean;
   isOwner?: (ad: TradeAdWithDetails) => boolean;
   onDeleteAd?: (id: string) => Promise<void>;
@@ -76,7 +76,12 @@ const TradeAdList: React.FC<TradeAdListProps> = ({
     <Grid container spacing={{ xs: 3, md: 4 }}>
       {ads.map((ad) => (
         <Grid item xs={12} sm={6} md={4} key={ad.id}>
-          <TradeAdCard ad={ad} />
+          <TradeAdCard 
+            ad={ad} 
+            isOwner={isOwner ? isOwner(ad) : false}
+            onDelete={onDeleteAd}
+            onUpdate={onUpdateAd}
+          />
         </Grid>
       ))}
     </Grid>

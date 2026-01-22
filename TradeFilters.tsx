@@ -35,19 +35,20 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
     onFilterChange(newFilters);
   };
 
-  const handleCreateAd = async (data: any) => {
-    if (!onCreateAd) return;
-    
-    setLoading(true);
-    try {
-      await onCreateAd(data);
-      setCreateModalOpen(false);
-    } catch (error) {
-      console.error('Create ad error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleCreateAd = async (data: any) => {
+  if (!onCreateAd) return;
+  
+  setLoading(true);
+  try {
+    await onCreateAd(data);
+    setCreateModalOpen(false);
+  } catch (error) {
+    console.error('Create ad error:', error);
+    alert('Failed to create ad. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const seriesOptions = ['G2', 'G3', 'G4', 'G5', 'G6', 'G7'];
   const conditionOptions = [
@@ -75,9 +76,7 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
           gap: 2,
           mb: 4,
           padding: { xs: 2, sm: 3 },
-          background: 'rgba(255, 255, 255, 0.42)',
           borderRadius: 3,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
         }}
       >
         {/* Первая строка: поиск, сортировка, переключатель, кнопка */}
