@@ -15,6 +15,8 @@ interface TradeAdListProps {
   isOwner?: (ad: TradeAdWithDetails) => boolean;
   onDeleteAd?: (id: string) => Promise<void>;
   onUpdateAd?: (id: string, data: any) => Promise<void>;
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
 }
 
 const TradeAdList: React.FC<TradeAdListProps> = ({
@@ -23,6 +25,8 @@ const TradeAdList: React.FC<TradeAdListProps> = ({
   isOwner,
   onDeleteAd,
   onUpdateAd,
+  onSuccess,
+  onError,
 }) => {
   if (loading) {
     return (
@@ -81,6 +85,8 @@ const TradeAdList: React.FC<TradeAdListProps> = ({
             isOwner={isOwner ? isOwner(ad) : false}
             onDelete={onDeleteAd}
             onUpdate={onUpdateAd}
+            onSuccess={onSuccess}
+            onError={onError}
           />
         </Grid>
       ))}

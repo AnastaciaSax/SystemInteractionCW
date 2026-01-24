@@ -1,4 +1,3 @@
-// client/src/components/forms/TradeAdForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -12,6 +11,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { figurinesAPI } from '../../services/api';
+import ImageUpload from './ImageUpload';
 
 interface TradeAdFormProps {
   onSubmit: (data: any) => Promise<void>;
@@ -28,25 +28,72 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
   submitText = 'Save',
   initialData = {},
 }) => {
-const [formData, setFormData] = useState({
-  title: initialData.title || '',
-  description: initialData.description || '',
-  condition: initialData.condition || 'MINT',
-  series: initialData.series || 'G2',
-  // region: initialData.region || 'USA', // ← УДАЛЯЕМ
-  photo: initialData.photo || '',
-  figurineId: initialData.figurineId || '',
-  location: initialData.location || '', // ← Оставляем только location
-});
+  const isEditMode = submitText.toLowerCase().includes('save') && Object.keys(initialData).length > 0;
+  
+  const [formData, setFormData] = useState({
+    title: initialData.title || '',
+    description: initialData.description || '',
+    condition: initialData.condition || 'MINT',
+    series: initialData.series || 'G2',
+    photo: initialData.photo || '',
+    figurineId: initialData.figurineId || '',
+    location: initialData.location || '',
+  });
 
+  const [initialFormData] = useState({
+    title: initialData.title || '',
+    description: initialData.description || '',
+    condition: initialData.condition || 'MINT',
+    series: initialData.series || 'G2',
+    photo: initialData.photo || '',
+    figurineId: initialData.figurineId || '',
+    location: initialData.location || '',
+  });
+  
+  const [hasChanges, setHasChanges] = useState(false);
   const [figurines, setFigurines] = useState<any[]>([]);
   const [figurinesLoading, setFigurinesLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState(initialData.photo || '');
+  const [hasPhoto, setHasPhoto] = useState(!!initialData.photo);
 
   useEffect(() => {
     fetchFigurines();
   }, []);
+
+  // Проверяем изменения при каждом обновлении formData или photoFile
+  useEffect(() => {
+    if (!isEditMode) {
+      // Для создания: все обязательные поля заполнены И есть фото
+      const hasRequiredFields = 
+        formData.title.trim() !== '' &&
+        formData.description.trim() !== '' &&
+        formData.location.trim() !== '' &&
+        formData.figurineId !== '';
+      
+      setHasChanges(hasRequiredFields && hasPhoto);
+    } else {
+      // Для редактирования: проверяем, есть ли ЛЮБЫЕ изменения в форме
+      const textFieldsChanged = 
+        formData.title !== initialFormData.title ||
+        formData.description !== initialFormData.description ||
+        formData.condition !== initialFormData.condition ||
+        formData.series !== initialFormData.series ||
+        formData.figurineId !== initialFormData.figurineId ||
+        formData.location !== initialFormData.location;
+      
+      // В режиме редактирования: либо есть изменения в полях, либо загружено новое фото
+      const hasAnyChanges = textFieldsChanged || !!photoFile;
+      
+      // Проверяем, что обязательные поля заполнены
+      const requiredFieldsFilled = 
+        formData.title.trim() !== '' &&
+        formData.description.trim() !== '' &&
+        formData.location.trim() !== '' &&
+        formData.figurineId !== '';
+      
+      setHasChanges(hasAnyChanges && requiredFieldsFilled);
+    }
+  }, [formData, photoFile, initialFormData, isEditMode, hasPhoto]);
 
   const fetchFigurines = async () => {
     setFigurinesLoading(true);
@@ -70,17 +117,14 @@ const [formData, setFormData] = useState({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setPhotoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setPhotoPreview(result);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoFile(file);
+    setHasPhoto(true);
+  };
+
+  const handlePhotoRemove = () => {
+    setPhotoFile(null);
+    setHasPhoto(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,8 +137,13 @@ const [formData, setFormData] = useState({
     formDataToSend.append('location', formData.location);
     formDataToSend.append('figurineId', formData.figurineId);
     
+    // При создании объявления фото обязательно
+    // При редактировании - опционально
     if (photoFile) {
       formDataToSend.append('photo', photoFile);
+    } else if (!isEditMode && !hasPhoto) {
+      // В режиме создания, если фото не загружено, не отправляем форму
+      return;
     }
     
     await onSubmit(formDataToSend);
@@ -125,7 +174,7 @@ const [formData, setFormData] = useState({
           mb: 2,
         }}
       >
-        {submitText === 'Save' ? 'Edit TradeAd' : 'Create TradeAd'}
+        {isEditMode ? 'Edit TradeAd' : 'Create TradeAd'}
       </Typography>
 
       {/* Загрузка фото */}
@@ -139,73 +188,16 @@ const [formData, setFormData] = useState({
             pt: 1,
           }}
         >
-          Photo*:
+          Photo{!isEditMode ? '*' : ''}:
         </Typography>
         
-        <Box sx={{ position: 'relative', width: 355, height: 355 }}>
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '10px',
-              border: '1px dashed #EC2EA6',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              cursor: 'pointer',
-              overflow: 'hidden',
-              position: 'relative',
-              bgcolor: photoPreview ? 'transparent' : '#F8F8F8',
-            }}
-            onClick={() => document.getElementById('photo-upload')?.click()}
-          >
-            {photoPreview ? (
-              <img
-                src={photoPreview}
-                alt="Preview"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  borderRadius: '10px',
-                }}
-              />
-            ) : (
-              <>
-                <img
-                  src="/assets/attach.svg"
-                  alt="Attach photo"
-                  style={{ width: 35, height: 35, marginBottom: 2 }}
-                />
-                <Typography
-                  sx={{
-                    color: '#560D30',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontSize: '14px',
-                    mt: 1,
-                  }}
-                >
-                  Click to upload photo
-                </Typography>
-                <Typography
-                  sx={{
-                    color: '#882253',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontSize: '12px',
-                  }}
-                >
-                  (Required)
-                </Typography>
-              </>
-            )}
-          </Box>
-          <input
-            id="photo-upload"
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            style={{ display: 'none' }}
+        <Box sx={{ width: 355 }}>
+          <ImageUpload
+            initialImage={formData.photo}
+            onImageUpload={handlePhotoUpload}
+            onImageRemove={handlePhotoRemove}
+            aspectRatio={1}
+            maxSize={5}
           />
         </Box>
       </Box>
@@ -418,7 +410,7 @@ const [formData, setFormData] = useState({
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, mt: 4 }}>
         <Button
           type="submit"
-          disabled={loading || figurinesLoading}
+          disabled={loading || figurinesLoading || !hasChanges}
           variant="contained"
           sx={{
             backgroundColor: '#560D30',

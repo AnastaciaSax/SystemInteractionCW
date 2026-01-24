@@ -7,20 +7,32 @@ import PageBanner from '../../components/PageBanner';
 import TradeFilters from './components/TradeFilters';
 import TradeAdList from './components/TradeAdList';
 import Pagination from './components/Pagination';
+import Notification from '../../components/ui/Notification';
 import { tradeAPI } from '../../services/api';
 import './Trade.css';
 
 const Trade: React.FC = () => {
   const [ads, setAds] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{
+    open: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info';
+  }>({
+    open: false,
+    message: '',
+    type: 'info',
+  });
+
   const [filters, setFilters] = useState({
     search: '',
     series: 'ALL',
     condition: 'ALL',
     region: 'ALL',
     view: 'ALL',
-    sort: 'newest' // Добавляем сортировку
+    sort: 'newest'
   });
+  
   const [pagination, setPagination] = useState({
     page: 1,
     total: 0,
@@ -28,13 +40,21 @@ const Trade: React.FC = () => {
     limit: 6
   });
 
+  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({
+      open: true,
+      message,
+      type,
+    });
+  };
+
   // Получить текущего пользователя
   const getCurrentUser = () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
   };
 
-   const fetchAds = async () => {
+  const fetchAds = async () => {
     setLoading(true);
     try {
       let response: any;
@@ -59,7 +79,7 @@ const Trade: React.FC = () => {
           condition: filters.condition !== 'ALL' ? filters.condition : undefined,
           region: filters.region !== 'ALL' ? filters.region : undefined,
           search: filters.search || undefined,
-          sort: filters.sort // Передаем сортировку на сервер
+          sort: filters.sort
         });
         
         setAds(response.data?.ads || []);
@@ -72,6 +92,7 @@ const Trade: React.FC = () => {
     } catch (error) {
       console.error('Error fetching ads:', error);
       setAds([]);
+      showNotification('Failed to load trade ads', 'error');
     } finally {
       setLoading(false);
     }
@@ -118,36 +139,42 @@ const Trade: React.FC = () => {
     setPagination(prev => ({ ...prev, page }));
   };
 
-const handleCreateAd = async (data: FormData) => {
-  try {
-    const response = await tradeAPI.createAd(data);
-    if (response.data) {
-      fetchAds(); // Обновляем список
-      return Promise.resolve();
+  const handleCreateAd = async (data: FormData) => {
+    try {
+      const response = await tradeAPI.createAd(data);
+      if (response.data) {
+        fetchAds();
+        showNotification('Trade ad created successfully! 🎉', 'success');
+        return Promise.resolve();
+      }
+    } catch (error) {
+      console.error('Error creating ad:', error);
+      showNotification('Failed to create trade ad. Please try again.', 'error');
+      return Promise.reject(error);
     }
-  } catch (error) {
-    console.error('Error creating ad:', error);
-    return Promise.reject(error);
-  }
-};
+  };
 
   const handleDeleteAd = async (id: string) => {
     try {
       await tradeAPI.deleteAd(id);
-      fetchAds(); // Обновляем список
+      fetchAds();
+      showNotification('Trade ad deleted successfully!', 'success');
     } catch (error) {
       console.error('Error deleting ad:', error);
+      showNotification('Failed to delete trade ad. Please try again.', 'error');
     }
   };
 
   const handleUpdateAd = async (id: string, data: FormData) => {
-  try {
-    await tradeAPI.updateAd(id, data);
-    fetchAds(); // Обновляем список
-  } catch (error) {
-    console.error('Error updating ad:', error);
-  }
-};
+    try {
+      await tradeAPI.updateAd(id, data);
+      fetchAds();
+      showNotification('Trade ad updated successfully! ✨', 'success');
+    } catch (error) {
+      console.error('Error updating ad:', error);
+      showNotification('Failed to update trade ad. Please try again.', 'error');
+    }
+  };
 
   // Проверяем, является ли текущий пользователь владельцем объявления
   const checkIsOwner = (ad: any) => {
@@ -162,9 +189,19 @@ const handleCreateAd = async (data: FormData) => {
         background: 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)',
         display: 'flex',
         flexDirection: 'column',
+        position: 'relative',
       }}
     >
       <Header />
+
+      {/* Уведомление */}
+      <Notification
+        open={notification.open}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        duration={3000}
+      />
 
       <PageBanner
         title="Trade"
@@ -195,6 +232,8 @@ const handleCreateAd = async (data: FormData) => {
           isOwner={checkIsOwner}
           onDeleteAd={handleDeleteAd}
           onUpdateAd={handleUpdateAd}
+          onSuccess={(message) => showNotification(message, 'success')}
+          onError={(message) => showNotification(message, 'error')}
         />
 
         {pagination.pages > 1 && (
