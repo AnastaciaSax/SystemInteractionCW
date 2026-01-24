@@ -223,3 +223,40 @@ a:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-accent2);
 }
+
+/* Responsive Container */
+.container-responsive {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 80px;
+}
+
+@media (max-width: 1440px) {
+  .container-responsive {
+    padding: 0 60px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .container-responsive {
+    padding: 0 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container-responsive {
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container-responsive {
+    padding: 0 16px;
+  }
+}
+
+/* Mobile Menu Body Lock */
+body.menu-open {
+  overflow: hidden;
+}
