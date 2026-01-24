@@ -146,8 +146,9 @@ app.get('/api/trade-ads', async (req, res) => {
       limit = 6,
       series,
       condition,
-      region,
-      search
+      region, // ← Фильтр по региону пользователя
+      search,
+      sort = 'newest'
     } = req.query;
     
     const skip = (Number(page) - 1) * Number(limit);
@@ -167,6 +168,7 @@ app.get('/api/trade-ads', async (req, res) => {
     }
     
     if (region && region !== 'ALL') {
+      // Фильтруем по региону пользователя, а не по location объявления
       whereClause.user = {
         region: region as string
       };
@@ -176,8 +178,20 @@ app.get('/api/trade-ads', async (req, res) => {
       whereClause.OR = [
         { title: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } },
-        { figurine: { name: { contains: search as string, mode: 'insensitive' } } }
+        { figurine: { name: { contains: search as string, mode: 'insensitive' } } },
+        { location: { contains: search as string, mode: 'insensitive' } } // ← Ищем также в location
       ];
+    }
+    
+    // Настройка сортировки
+    let orderBy: any = { createdAt: 'desc' };
+    if (sort === 'oldest') {
+      orderBy = { createdAt: 'asc' };
+    } else if (sort === 'condition') {
+      // Сортировка по условию (нужна кастомная логика на клиенте или сервере)
+      orderBy = { createdAt: 'desc' };
+    } else if (sort === 'series') {
+      orderBy = { figurine: { series: 'asc' } };
     }
     
     const [ads, total] = await prisma.$transaction([
@@ -188,7 +202,7 @@ app.get('/api/trade-ads', async (req, res) => {
             select: {
               id: true,
               username: true,
-              region: true, // Добавляем регион пользователя
+              region: true, // ← Включаем регион пользователя
               profile: {
                 select: {
                   avatar: true,
@@ -206,15 +220,25 @@ app.get('/api/trade-ads', async (req, res) => {
         },
         skip,
         take: Number(limit),
-        orderBy: { createdAt: 'desc' }
+        orderBy
       }),
       prisma.tradeAd.count({ where: whereClause })
     ]);
     
     const pages = Math.ceil(total / Number(limit));
     
+    // Если сортировка по condition - обрабатываем на сервере
+    let sortedAds = ads;
+    if (sort === 'condition') {
+      const conditionOrder = { MINT: 4, NIB: 3, GOOD: 2, TLC: 1 };
+      sortedAds = ads.sort((a, b) => 
+        (conditionOrder[b.condition as keyof typeof conditionOrder] || 0) - 
+        (conditionOrder[a.condition as keyof typeof conditionOrder] || 0)
+      );
+    }
+    
     res.json({
-      ads,
+      ads: sortedAds,
       total,
       page: Number(page),
       pages,
@@ -304,7 +328,7 @@ app.post('/api/trade-ads', upload.single('photo'), async (req: any, res) => {
       return res.status(404).json({ error: 'Figurine not found' });
     }
     
-    // Получаем пользователя для получения его региона
+    // Получаем пользователя (регион берется из его профиля)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { region: true }
@@ -314,12 +338,19 @@ app.post('/api/trade-ads', upload.single('photo'), async (req: any, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    // Проверяем, указан ли у пользователя регион
+    if (!user.region) {
+      return res.status(400).json({ 
+        error: 'Please set your region in profile settings before creating trade ads' 
+      });
+    }
+    
     const ad = await prisma.tradeAd.create({
       data: {
         title,
         description,
         condition,
-        location,
+        location, // ← Конкретное местоположение
         photo: `/uploads/trade-ads/${req.file.filename}`,
         userId,
         figurineId,
@@ -330,7 +361,7 @@ app.post('/api/trade-ads', upload.single('photo'), async (req: any, res) => {
           select: {
             id: true,
             username: true,
-            region: true, // Добавляем регион пользователя
+            region: true, // ← Регион пользователя
             profile: {
               select: {
                 avatar: true,

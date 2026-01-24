@@ -15,6 +15,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import MessageIcon from '@mui/icons-material/Message';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PublicIcon from '@mui/icons-material/Public';
 import { TradeAdWithDetails } from '../../services/types';
 
 interface TradeAdDetailsModalProps {
@@ -211,31 +212,68 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
               </Typography>
             </Box>
 
-            {/* Детали местоположения и даты */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocationOnIcon sx={{ color: '#882253', fontSize: 20 }} />
-                <Typography
-                  sx={{
-                    color: '#560D30',
-                    fontFamily: '"Nobile", sans-serif',
-                  }}
-                >
-                  {ad.location || 'Location not specified'}
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CalendarTodayIcon sx={{ color: '#882253', fontSize: 20 }} />
-                <Typography
-                  sx={{
-                    color: '#560D30',
-                    fontFamily: '"Nobile", sans-serif',
-                  }}
-                >
-                  Posted: {formatDate(ad.createdAt)}
-                </Typography>
-              </Box>
-            </Box>
+            {/* Детали местоположения и даты - компактный вариант */}
+<Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 3 }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+    {/* Локация и дата вместе */}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <LocationOnIcon sx={{ color: '#882253', fontSize: 18 }} />
+        <Typography
+          sx={{
+            color: '#560D30',
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '15px',
+          }}
+        >
+          {ad.location || 'Location not specified'}
+        </Typography>
+      </Box>
+      
+      <Typography sx={{ color: '#882253', opacity: 0.5 }}>|</Typography>
+      
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <CalendarTodayIcon sx={{ color: '#882253', fontSize: 18 }} />
+        <Typography
+          sx={{
+            color: '#560D30',
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '15px',
+          }}
+        >
+          {formatDate(ad.createdAt)}
+        </Typography>
+      </Box>
+    </Box>
+    
+    {/* Регион как бейдж */}
+    {ad.user?.region && (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          backgroundColor: 'rgba(236, 46, 166, 0.1)',
+          padding: '4px 10px',
+          borderRadius: '12px',
+          border: '1px solid rgba(236, 46, 166, 0.3)',
+        }}
+      >
+        <PublicIcon sx={{ color: '#EC2EA6', fontSize: 16 }} />
+        <Typography
+          sx={{
+            color: '#560D30',
+            fontFamily: '"Nobile", sans-serif',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          {ad.user.region}
+        </Typography>
+      </Box>
+    )}
+  </Box>
+</Box>
 
             <Divider sx={{ my: 3 }} />
 

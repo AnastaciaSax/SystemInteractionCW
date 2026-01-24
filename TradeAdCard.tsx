@@ -189,13 +189,11 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
               sx={{
                 width: 60,
                 height: 60,
-                backgroundColor: '#F05EBA',
                 borderRadius: '50%',
                 flexShrink: 0,
                 transition: 'all 0.2s ease',
                 padding: 0,
                 '&:hover': {
-                  backgroundColor: '#F056B7',
                   transform: 'scale(1.05)',
                 },
               }}
@@ -216,8 +214,8 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
                   }
                   alt="Offer trade"
                   style={{ 
-                    width: '70%',
-                    height: '70%',
+                    width: '90%',
+                    height: '90%',
                     objectFit: 'contain',
                     transition: 'all 0.2s ease',
                   }}
@@ -236,13 +234,11 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
                   sx={{
                     width: 60,
                     height: 60,
-                    backgroundColor: '#4CAF50',
                     borderRadius: '50%',
                     flexShrink: 0,
                     transition: 'all 0.2s ease',
                     padding: 0,
                     '&:hover': {
-                      backgroundColor: '#45a049',
                       transform: 'scale(1.05)',
                     },
                   }}
@@ -263,8 +259,8 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
                       }
                       alt="Edit"
                       style={{ 
-                        width: '70%',
-                        height: '70%',
+                        width: '90%',
+                        height: '90%',
                         objectFit: 'contain',
                         transition: 'all 0.2s ease',
                       }}
@@ -280,13 +276,11 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
                   sx={{
                     width: 60,
                     height: 60,
-                    backgroundColor: '#f44336',
                     borderRadius: '50%',
                     flexShrink: 0,
                     transition: 'all 0.2s ease',
                     padding: 0,
                     '&:hover': {
-                      backgroundColor: '#d32f2f',
                       transform: 'scale(1.05)',
                     },
                   }}
@@ -307,8 +301,8 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
                       }
                       alt="Delete"
                       style={{ 
-                        width: '70%',
-                        height: '70%',
+                        width: '90%',
+                        height: '90%',
                         objectFit: 'contain',
                         transition: 'all 0.2s ease',
                       }}

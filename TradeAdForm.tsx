@@ -28,16 +28,16 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
   submitText = 'Save',
   initialData = {},
 }) => {
-  const [formData, setFormData] = useState({
-    title: initialData.title || '',
-    description: initialData.description || '',
-    condition: initialData.condition || 'MINT',
-    series: initialData.series || 'G2',
-    region: initialData.region || 'USA',
-    photo: initialData.photo || '',
-    figurineId: initialData.figurineId || '',
-    location: initialData.location || '',
-  });
+const [formData, setFormData] = useState({
+  title: initialData.title || '',
+  description: initialData.description || '',
+  condition: initialData.condition || 'MINT',
+  series: initialData.series || 'G2',
+  // region: initialData.region || 'USA', // ← УДАЛЯЕМ
+  photo: initialData.photo || '',
+  figurineId: initialData.figurineId || '',
+  location: initialData.location || '', // ← Оставляем только location
+});
 
   const [figurines, setFigurines] = useState<any[]>([]);
   const [figurinesLoading, setFigurinesLoading] = useState(false);
@@ -228,6 +228,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
           onChange={handleChange}
           fullWidth
           required
+          placeholder="Brown Shorthair Cat With Bow"
           sx={{
             maxWidth: 378,
             '& .MuiOutlinedInput-root': {
@@ -265,6 +266,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
           rows={4}
           fullWidth
           required
+          placeholder="Pretty figure's looking for a new kind owner..."
           sx={{
             maxWidth: 378,
             '& .MuiOutlinedInput-root': {
@@ -299,7 +301,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
           onChange={handleChange}
           fullWidth
           required
-          placeholder="e.g., New York, USA"
+          placeholder="New York, Lincoln Street"
           sx={{
             maxWidth: 378,
             '& .MuiOutlinedInput-root': {
@@ -405,7 +407,7 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
             }}
           >
             <MenuItem value="MINT">Mint</MenuItem>
-            <MenuItem value="TLC">Needs TLC</MenuItem>
+            <MenuItem value="TLC">TLC</MenuItem>
             <MenuItem value="GOOD">Good</MenuItem>
             <MenuItem value="NIB">New in Box</MenuItem>
           </Select>
