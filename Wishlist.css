@@ -1,0 +1,163 @@
+/* client/src/pages/Wishlist/Wishlist.css */
+/* Адаптивные стили для карточек */
+@media (max-width: 1280px) {
+  .wishlist-grid-container {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  .wishlist-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .wishlist-card {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .wishlist-grid-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .wishlist-card {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .wishlist-filters {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .year-range-filter {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+}
+
+/* Анимация появления карточек */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wishlist-card {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* Анимация загрузки */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Эффект ховера для карточек */
+.wishlist-card:hover {
+  transform: translateY(-4px);
+  transition: transform 0.3s ease;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Кастомный скролл для модальных окон */
+.wishlist-modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.wishlist-modal-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.wishlist-modal-content::-webkit-scrollbar-thumb {
+  background: #EC2EA6;
+  border-radius: 3px;
+}
+
+.wishlist-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #F056B7;
+}
+
+/* Стили для иконок действий */
+.action-button {
+  transition: all 0.2s ease;
+}
+
+.action-button:hover {
+  transform: scale(1.1);
+}
+
+/* Стили для отметок в вишлисте */
+.in-wishlist {
+  position: relative;
+}
+
+.in-wishlist::after {
+  content: '✓';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #4CAF50;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 1;
+}
+.year-range-filter {
+  display: flex;
+  height: 37px;
+  background: white;
+  border-radius: 10px;
+  outline: 1px solid #EC2EA6;
+  outline-offset: -1px;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .year-range-filter {
+    flex-wrap: wrap;
+    height: auto;
+  }
+  
+  .year-range-button {
+    flex: 1 0 33%;
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 600px) {
+  .year-range-filter {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .year-range-button {
+    width: 100%;
+    flex: none;
+  }
+}

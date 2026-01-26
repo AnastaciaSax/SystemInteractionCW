@@ -1,4 +1,3 @@
-// src/services/api.ts 
 import axios from 'axios';
 import { 
   User, 
@@ -7,7 +6,7 @@ import {
   TradeAd, 
   WishlistItem, 
   Article,
-   TradeAdWithDetails,
+  TradeAdWithDetails,
 } from './types';
 
 const API_URL = '/api';
@@ -26,13 +25,31 @@ api.interceptors.request.use((config) => {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Показываем loading для всех запросов кроме коротких
+  if (!config.url?.includes('health') && !config.url?.includes('test-db')) {
+    // Здесь можно добавить глобальное состояние загрузки
+    console.log(`🔄 Starting request to: ${config.url}`);
+  }
+  
   return config;
 });
 
-// Обработка ошибок
+// Обработка ответов и ошибок
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Скрываем loading при успешном ответе
+    if (!response.config.url?.includes('health') && !response.config.url?.includes('test-db')) {
+      console.log(`✅ Request completed: ${response.config.url}`);
+    }
+    return response;
+  },
   (error) => {
+    // Скрываем loading при ошибке
+    if (!error.config?.url?.includes('health') && !error.config?.url?.includes('test-db')) {
+      console.log(`❌ Request failed: ${error.config?.url}`);
+    }
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -42,7 +59,7 @@ api.interceptors.response.use(
   }
 );
 
-// API методы (TypeScript будет выводить типы автоматически)
+// API методы
 export const authAPI = {
   login: (email: string, password: string) =>
     api.post<LoginResponse>('/auth/login', { email, password }),
@@ -53,7 +70,7 @@ export const authAPI = {
     api.post<{ success: boolean; message: string; demoCode?: string }>('/auth/send-verification', { email }),
   verifyCode: (email: string, code: string) =>
     api.post<{ success: boolean; message: string }>('/auth/verify-code', { email, code }),
-  checkVerification: (email: string) => // ← Добавьте этот метод
+  checkVerification: (email: string) =>
     api.post<{ success: boolean; verified: boolean; message: string }>('/auth/check-verification', { email }),
 };
 
@@ -98,8 +115,13 @@ export const tradeAPI = {
 
 export const wishlistAPI = {
   getMyWishlist: () => api.get<WishlistItem[]>('/wishlist/me'),
-  addToWishlist: (data: any) => api.post<WishlistItem>('/wishlist', data),
+  addToWishlist: (data: { figurineId: string; note?: string; priority?: number }) => 
+    api.post<WishlistItem>('/wishlist', data),
+  updateWishlistItem: (id: string, data: { note?: string; priority?: number }) => 
+    api.put<WishlistItem>(`/wishlist/${id}`, data),
   removeFromWishlist: (id: string) => api.delete<{ success: boolean }>(`/wishlist/${id}`),
+  getFigurineWishlistStatus: (figurineId: string) =>
+    api.get<{ inWishlist: boolean; note?: string }>(`/wishlist/status/${figurineId}`),
 };
 
 export const articlesAPI = {

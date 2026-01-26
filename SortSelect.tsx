@@ -14,6 +14,7 @@ interface SortSelectProps {
   size?: 'small' | 'medium';
   fullWidth?: boolean;
   placeholder?: string;
+    options?: Array<{ value: string; label: string }>; // Добавим кастомные опции
 }
 
 const SortSelect: React.FC<SortSelectProps> = ({
@@ -22,12 +23,13 @@ const SortSelect: React.FC<SortSelectProps> = ({
   size = 'small',
   fullWidth = false,
   placeholder = 'Sort by',
+    options, 
 }) => {
   const handleChange = (event: SelectChangeEvent) => {
     onChange(event.target.value);
   };
 
-  const sortOptions = [
+ const sortOptions = options || [ // Используем кастомные или стандартные
     { value: 'newest', label: 'Newest' },
     { value: 'oldest', label: 'Oldest' },
     { value: 'condition', label: 'By Condition' },

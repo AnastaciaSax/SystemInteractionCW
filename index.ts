@@ -506,5 +506,195 @@ app.delete('/api/trade-ads/:id', async (req: any, res) => {
   }
 });
 
+// Эндпоинты для wishlist
+app.get('/api/wishlist/me', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const wishlistItems = await prisma.wishlistItem.findMany({
+      where: { userId },
+      include: {
+        figurine: {
+          select: {
+            id: true,
+            number: true,
+            name: true,
+            imageUrl: true,
+          }
+        }
+      },
+      orderBy: { addedAt: 'desc' }
+    });
+    
+    res.json(wishlistItems);
+  } catch (error: any) {
+    console.error('Error fetching wishlist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/wishlist', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { figurineId, note, priority } = req.body;
+    
+    // Проверяем, не добавлена ли уже фигурка
+    const existingItem = await prisma.wishlistItem.findFirst({
+      where: { userId, figurineId }
+    });
+    
+    if (existingItem) {
+      return res.status(400).json({ error: 'Figurine already in wishlist' });
+    }
+    
+    const wishlistItem = await prisma.wishlistItem.create({
+      data: {
+        userId,
+        figurineId,
+        note,
+        priority: priority || 1
+      },
+      include: {
+        figurine: {
+          select: {
+            id: true,
+            number: true,
+            name: true,
+            imageUrl: true,
+          }
+        }
+      }
+    });
+    
+    res.json(wishlistItem);
+  } catch (error: any) {
+    console.error('Error adding to wishlist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/wishlist/:id', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const itemId = req.params.id;
+    const { note, priority } = req.body;
+    
+    // Проверяем, что элемент принадлежит пользователю
+    const existingItem = await prisma.wishlistItem.findFirst({
+      where: { id: itemId, userId }
+    });
+    
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Wishlist item not found' });
+    }
+    
+    const updatedItem = await prisma.wishlistItem.update({
+      where: { id: itemId },
+      data: {
+        note,
+        priority
+      },
+      include: {
+        figurine: {
+          select: {
+            id: true,
+            number: true,
+            name: true,
+            imageUrl: true,
+          }
+        }
+      }
+    });
+    
+    res.json(updatedItem);
+  } catch (error: any) {
+    console.error('Error updating wishlist item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/wishlist/:id', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const itemId = req.params.id;
+    
+    // Проверяем, что элемент принадлежит пользователю
+    const existingItem = await prisma.wishlistItem.findFirst({
+      where: { id: itemId, userId }
+    });
+    
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Wishlist item not found' });
+    }
+    
+    await prisma.wishlistItem.delete({
+      where: { id: itemId }
+    });
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting wishlist item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/wishlist/status/:figurineId', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const figurineId = req.params.figurineId;
+    
+    const wishlistItem = await prisma.wishlistItem.findFirst({
+      where: { userId, figurineId }
+    });
+    
+    res.json({
+      inWishlist: !!wishlistItem,
+      note: wishlistItem?.note
+    });
+  } catch (error: any) {
+    console.error('Error checking wishlist status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Добавим статическую папку для загрузок
 app.use('/uploads', express.static('uploads'));

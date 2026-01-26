@@ -1,3 +1,6 @@
+// client/src/services/types.ts
+export type Region = 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER';
+
 export interface User {
   id: string;
   email: string;
@@ -6,19 +9,18 @@ export interface User {
   age?: number;
   parentEmail?: string;
   isVerified: boolean;
-  region?: 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER';
+  region?: 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER'; // ← Основной регион пользователя
   createdAt: string;
   updatedAt: string;
-  profile?: Profile; // ← важно: профиль может быть undefined
+  profile?: Profile;
 }
-export type Region = 'USA' | 'EU' | 'CIS' | 'ASIA' | 'OTHER';
 
 export interface Profile {
   id: string;
   userId: string;
   avatar: string;
   bio?: string;
-  location?: string;
+  location?: string; // ← Конкретный город/страна
   rating: number;
   status: string;
   achievements: string[];
@@ -54,7 +56,7 @@ export interface TradeAd {
   title: string;
   description: string;
   condition: 'MINT' | 'TLC' | 'GOOD' | 'NIB';
-  location: string;
+  location: string; // ← Конкретное местоположение для объявления
   status: 'ACTIVE' | 'PENDING' | 'COMPLETED' | 'CANCELLED';
   photo: string;
   createdAt: string;
@@ -87,7 +89,7 @@ export interface TradeAdWithDetails extends TradeAd {
   user: {
     id: string;
     username: string;
-    region?: string; // Добавляем регион пользователя
+    region?: string; // ← Регион пользователя
     profile?: {
       avatar: string;
       rating: number;

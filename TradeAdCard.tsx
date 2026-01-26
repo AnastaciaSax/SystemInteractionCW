@@ -21,13 +21,17 @@ interface TradeAdCardProps {
   isOwner?: boolean;
   onDelete?: (id: string) => Promise<void>;
   onUpdate?: (id: string, data: any) => Promise<void>;
+  onSuccess?: (message: string) => void; 
+  onError?: (message: string) => void;
 }
 
 const TradeAdCard: React.FC<TradeAdCardProps> = ({ 
   ad, 
   isOwner = false, 
   onDelete, 
-  onUpdate 
+  onUpdate,
+  onSuccess,
+  onError
 }) => {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -58,8 +62,10 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
     try {
       await onDelete(ad.id);
       setDeleteDialogOpen(false);
+      if (onSuccess) onSuccess('Trade ad deleted successfully!');
     } catch (error) {
       console.error('Error deleting ad:', error);
+      if (onError) onError('Failed to delete trade ad');
     } finally {
       setLoading(false);
     }
@@ -72,8 +78,10 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
     try {
       await onUpdate(ad.id, data);
       setEditModalOpen(false);
+      if (onSuccess) onSuccess('Trade ad updated successfully!');
     } catch (error) {
       console.error('Error updating ad:', error);
+      if (onError) onError('Failed to update trade ad');
     } finally {
       setLoading(false);
     }
