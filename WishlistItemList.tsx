@@ -1,4 +1,3 @@
-// client/src/pages/Wishlist/components/WishlistItemList.tsx
 import React from 'react';
 import {
   Box,

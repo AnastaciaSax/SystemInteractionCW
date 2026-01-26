@@ -507,6 +507,7 @@ app.delete('/api/trade-ads/:id', async (req: any, res) => {
 });
 
 // Эндпоинты для wishlist
+// Эндпоинт для получения вишлиста пользователя с полными данными фигурок
 app.get('/api/wishlist/me', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -526,7 +527,13 @@ app.get('/api/wishlist/me', async (req: any, res) => {
             id: true,
             number: true,
             name: true,
+            mold: true,
+            series: true,
+            rarity: true,
+            year: true,
+            description: true,
             imageUrl: true,
+            verified: true
           }
         }
       },

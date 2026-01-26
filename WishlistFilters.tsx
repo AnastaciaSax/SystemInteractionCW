@@ -1,11 +1,10 @@
-// client/src/pages/Wishlist/components/WishlistFilters.tsx
 import React from 'react';
 import { Box } from '@mui/material';
 import SearchInput from '../../../components/ui/SearchInput';
 import SortSelect from '../../../components/ui/SortSelect';
 import ToggleSwitch from '../../../components/ui/ToggleSwitch';
 import FilterSelect from '../../../components/ui/FilterSelect';
-import YearRangeFilter from '../../../components/ui/YearRangeFilter'; // ← Новый импорт
+import YearRangeFilter from '../../../components/ui/YearRangeFilter';
 
 interface WishlistFiltersProps {
   filters: {
@@ -120,7 +119,7 @@ const WishlistFilters: React.FC<WishlistFiltersProps> = ({
         </Box>
       </Box>
 
-      {/* Вторая строка: фильтр по годам (новый компонент) */}
+      {/* Вторая строка: фильтр по годам */}
       <Box sx={{ width: '100%' }}>
         <YearRangeFilter
           value={filters.yearRange}

@@ -1,4 +1,3 @@
-// client/src/pages/Wishlist/Wishlist.tsx
 import React, { useState, useEffect } from 'react';
 import { Box, Container } from '@mui/material';
 import Header from '../../components/Layout/Header';
@@ -49,112 +48,35 @@ const Wishlist: React.FC = () => {
     });
   };
 
-  // Получить текущего пользователя
-  const getCurrentUser = () => {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
-  };
-
   // Проверка, находится ли фигурка в вишлисте пользователя
   const isInMyWishlist = (figurineId: string) => {
-    return myWishlist.some(item => item.figurineId === figurineId);
+    return myWishlist.some(item => item.figurine?.id === figurineId);
   };
 
   // Получить заметку для фигурки из вишлиста
   const getWishlistNote = (figurineId: string) => {
-    const item = myWishlist.find(item => item.figurineId === figurineId);
+    const item = myWishlist.find(item => item.figurine?.id === figurineId);
     return item ? item.note : '';
   };
 
   // Получить ID элемента вишлиста
   const getWishlistItemId = (figurineId: string) => {
-    const item = myWishlist.find(item => item.figurineId === figurineId);
+    const item = myWishlist.find(item => item.figurine?.id === figurineId);
     return item ? item.id : null;
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      let figurinesData: any[] = [];
-      
-      if (filters.view === 'MINE') {
-        // Загружаем только фигурки из вишлиста пользователя
-        const wishlistResponse = await wishlistAPI.getMyWishlist();
-        const wishlistItems = wishlistResponse.data || [];
-        setMyWishlist(wishlistItems);
-        
-        // Получаем детали каждой фигурки
-        const figurinePromises = wishlistItems.map(async (item: any) => {
-          try {
-            const response = await figurinesAPI.getById(item.figurineId);
-            return { ...response.data, wishlistItem: item };
-          } catch (error) {
-            console.error(`Error fetching figurine ${item.figurineId}:`, error);
-            return null;
-          }
-        });
-        
-        const results = await Promise.all(figurinePromises);
-        figurinesData = results.filter(Boolean);
-        
-        // Применяем фильтры к данным вишлиста
-        figurinesData = applyFilters(figurinesData);
-        figurinesData = sortFigurines(figurinesData, filters.sort);
-        
-        setFigurines(figurinesData);
-        setPagination(prev => ({ 
-          ...prev, 
-          total: figurinesData.length, 
-          pages: Math.ceil(figurinesData.length / prev.limit)
-        }));
-      } else {
-        // Загружаем все фигурки
-        const figurinesResponse = await figurinesAPI.getAll({
-          search: filters.search || undefined,
-          rarity: filters.rarity !== 'ALL' ? filters.rarity : undefined,
-          series: filters.yearRange !== 'ALL' ? getSeriesFromYearRange(filters.yearRange) : undefined
-        });
-        
-        figurinesData = figurinesResponse.data || [];
-        
-        // Загружаем вишлист пользователя для отображения статуса
-        try {
-          const wishlistResponse = await wishlistAPI.getMyWishlist();
-          setMyWishlist(wishlistResponse.data || []);
-        } catch (error) {
-          console.error('Error fetching wishlist:', error);
-          setMyWishlist([]);
-        }
-        
-        // Применяем фильтры
-        figurinesData = applyFilters(figurinesData);
-        figurinesData = sortFigurines(figurinesData, filters.sort);
-        
-        // Пагинация
-        const startIndex = (pagination.page - 1) * pagination.limit;
-        const endIndex = startIndex + pagination.limit;
-        const paginatedData = figurinesData.slice(startIndex, endIndex);
-        
-        setFigurines(paginatedData);
-        setPagination(prev => ({
-          ...prev,
-          total: figurinesData.length,
-          pages: Math.ceil(figurinesData.length / prev.limit)
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setFigurines([]);
-      setMyWishlist([]);
-      showNotification('Failed to load wishlist data', 'error');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Функция применения фильтров
   const applyFilters = (data: any[]) => {
     let filtered = [...data];
+    
+    // Фильтр по поиску
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(figurine => 
+        figurine.name.toLowerCase().includes(searchLower) ||
+        figurine.number.toLowerCase().includes(searchLower)
+      );
+    }
     
     // Фильтр по году (yearRange)
     if (filters.yearRange !== 'ALL') {
@@ -220,6 +142,94 @@ const Wishlist: React.FC = () => {
       case '2018-2022': return 'G6';
       case '2023-2025': return 'G7';
       default: return '';
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      let figurinesData: any[] = [];
+      
+      if (filters.view === 'MINE') {
+        // Загружаем вишлист пользователя с данными фигурок
+        const wishlistResponse = await wishlistAPI.getMyWishlist();
+        const wishlistItems = wishlistResponse.data || [];
+        setMyWishlist(wishlistItems);
+        
+        // Преобразуем данные вишлиста в массив фигурок
+        figurinesData = wishlistItems
+          .map((item: any) => {
+            if (item.figurine) {
+              return {
+                ...item.figurine,
+                wishlistItem: {
+                  id: item.id,
+                  note: item.note,
+                  priority: item.priority,
+                  addedAt: item.addedAt
+                }
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        // Применяем фильтры к данным вишлиста
+        figurinesData = applyFilters(figurinesData);
+        figurinesData = sortFigurines(figurinesData, filters.sort);
+        
+        // Пагинация
+        const startIndex = (pagination.page - 1) * pagination.limit;
+        const endIndex = startIndex + pagination.limit;
+        const paginatedData = figurinesData.slice(startIndex, endIndex);
+        
+        setFigurines(paginatedData);
+        setPagination(prev => ({ 
+          ...prev, 
+          total: figurinesData.length, 
+          pages: Math.ceil(figurinesData.length / prev.limit)
+        }));
+      } else {
+        // Загружаем все фигурки
+        const figurinesResponse = await figurinesAPI.getAll({
+          search: filters.search || undefined,
+          rarity: filters.rarity !== 'ALL' ? filters.rarity : undefined,
+        });
+        
+        figurinesData = figurinesResponse.data || [];
+        
+        // Загружаем вишлист пользователя для отображения статуса
+        try {
+          const wishlistResponse = await wishlistAPI.getMyWishlist();
+          setMyWishlist(wishlistResponse.data || []);
+        } catch (error) {
+          console.error('Error fetching wishlist:', error);
+          setMyWishlist([]);
+        }
+        
+        // Применяем фильтры
+        figurinesData = applyFilters(figurinesData);
+        figurinesData = sortFigurines(figurinesData, filters.sort);
+        
+        // Пагинация
+        const startIndex = (pagination.page - 1) * pagination.limit;
+        const endIndex = startIndex + pagination.limit;
+        const paginatedData = figurinesData.slice(startIndex, endIndex);
+        
+        setFigurines(paginatedData);
+        setPagination(prev => ({
+          ...prev,
+          total: figurinesData.length,
+          pages: Math.ceil(figurinesData.length / prev.limit)
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setFigurines([]);
+      setMyWishlist([]);
+      showNotification('Failed to load wishlist data', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
