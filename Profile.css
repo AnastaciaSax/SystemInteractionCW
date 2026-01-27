@@ -1,0 +1,234 @@
+/* Profile.css */
+
+/* Анимации загрузки */
+.loading-spinner {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  border: 3px solid #F6C4D4;
+  border-radius: 50%;
+  border-top-color: #EC2EA6;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Адаптивные стили для профиля */
+@media (max-width: 900px) {
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 20px;
+  }
+  
+  .avatar-container {
+    margin: 0 auto;
+  }
+  
+  .user-info {
+    align-items: center !important;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-tabs {
+    width: 100% !important;
+    max-width: 100%;
+  }
+  
+  .tab-switch {
+    font-size: 16px !important;
+  }
+  
+  .feedback-card {
+    padding: 16px !important;
+  }
+  
+  .achievement-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Эффекты ховера */
+.profile-avatar:hover .edit-overlay {
+  opacity: 1 !important;
+}
+
+.achievement-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.achievement-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+/* Стили для скроллбара в отзывах */
+.feedback-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.feedback-container::-webkit-scrollbar-track {
+  background: rgba(240, 94, 186, 0.1);
+  border-radius: 3px;
+}
+
+.feedback-container::-webkit-scrollbar-thumb {
+  background: #F05EBA;
+  border-radius: 3px;
+}
+
+.feedback-container::-webkit-scrollbar-thumb:hover {
+  background: #EC2EA6;
+}
+
+/* Анимация появления карточек */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feedback-card, 
+.achievement-card,
+.wishlist-card,
+.trade-card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Задержки для анимации карточек */
+.feedback-card:nth-child(1) { animation-delay: 0.1s; }
+.feedback-card:nth-child(2) { animation-delay: 0.2s; }
+.feedback-card:nth-child(3) { animation-delay: 0.3s; }
+.achievement-card:nth-child(1) { animation-delay: 0.1s; }
+.achievement-card:nth-child(2) { animation-delay: 0.2s; }
+.achievement-card:nth-child(3) { animation-delay: 0.3s; }
+
+/* Градиентные фоны для секций */
+.section-gradient {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 240, 245, 0.9) 100%);
+}
+
+/* Текст с подсветкой */
+.highlight-text {
+  background: linear-gradient(90deg, #EC2EA6, #F05EBA);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Иконки с анимацией */
+.animated-icon {
+  transition: transform 0.3s ease;
+}
+
+.animated-icon:hover {
+  transform: scale(1.2) rotate(5deg);
+}
+
+/* Контейнер для настроек профиля */
+.settings-container {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Responsive типография */
+@media (max-width: 768px) {
+  .profile-title {
+    font-size: 24px !important;
+  }
+  
+  .section-title {
+    font-size: 22px !important;
+  }
+  
+  .username-display {
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-title {
+    font-size: 20px !important;
+  }
+  
+  .section-title {
+    font-size: 18px !important;
+  }
+  
+  .tab-switch {
+    font-size: 14px !important;
+    padding: 8px 0 !important;
+  }
+}
+
+/* Эффект свечения для значка доверия */
+.trust-badge {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(236, 46, 166, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(236, 46, 166, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(236, 46, 166, 0);
+  }
+}
+
+/* Стили для placeholder-изображений */
+.avatar-placeholder {
+  background: linear-gradient(135deg, #F6C4D4, #EC2EA6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* Стили для пустых состояний */
+.empty-state {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(240, 240, 240, 0.7) 100%);
+  border: 2px dashed rgba(236, 46, 166, 0.3);
+}
+
+.empty-state:hover {
+  border-color: rgba(236, 46, 166, 0.6);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 240, 240, 0.9) 100%);
+}
+
+/* Кастомные стили для форм */
+.custom-input .MuiOutlinedInput-root {
+  font-family: '"Nobile", sans-serif';
+}
+
+.custom-input .MuiInputLabel-root {
+  font-family: '"Nobile", sans-serif';
+  color: #852654;
+}
+
+.custom-input .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(236, 46, 166, 0.3);
+}
+
+.custom-input:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #EC2EA6;
+}
+
+.custom-input .Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #EC2EA6;
+  border-width: 2px;
+}

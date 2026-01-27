@@ -106,7 +106,7 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
               position: 'absolute',
               top: 10,
               left: 10,
-              backgroundColor: 'rgba(86, 13, 48, 0.9)',
+               backgroundColor: '#F05EBA',
               color: 'white',
               padding: '2px 8px',
               borderRadius: '4px',

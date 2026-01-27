@@ -141,4 +141,15 @@ export const removeAuthToken = () => {
   delete api.defaults.headers.common['Authorization'];
 };
 
+export const profileAPI = {
+  getProfile: (userId: string) => api.get(`/users/${userId}/profile`),
+  updateProfile: (data: any) => api.put('/profile', data),
+  uploadAvatar: (data: FormData) => 
+    api.post('/profile/avatar', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  getUserWishlist: (userId: string) => api.get(`/users/${userId}/wishlist`),
+  getUserTradeAds: (userId: string) => api.get(`/users/${userId}/trade-ads`),
+};
+
 export default api;

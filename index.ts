@@ -705,3 +705,234 @@ app.get('/api/wishlist/status/:figurineId', async (req: any, res) => {
 
 // Добавим статическую папку для загрузок
 app.use('/uploads', express.static('uploads'));
+
+// Получить профиль пользователя по ID
+app.get('/api/users/:id/profile', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        profile: true,
+        ratingsReceived: {
+          include: {
+            rater: {
+              include: {
+                profile: true
+              }
+            },
+            trade: true
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(user);
+  } catch (error: any) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Обновить профиль пользователя
+app.put('/api/profile', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { 
+      username, 
+      bio, 
+      location, 
+      avatar, 
+      region,
+      achievements 
+    } = req.body;
+    
+    // Получаем текущий профиль
+    const currentProfile = await prisma.profile.findUnique({
+      where: { userId }
+    });
+    
+    // Проверяем, есть ли уже ачивка "Profile Customizer"
+    let updatedAchievements = currentProfile?.achievements || [];
+    const hasProfileCustomizer = updatedAchievements.includes('Profile Customizer');
+    
+    // Добавляем ачивку, если это первое обновление профиля
+    if (!hasProfileCustomizer) {
+      updatedAchievements.push('Profile Customizer');
+    }
+    
+    // Если переданы дополнительные ачивки, добавляем их
+    if (achievements && Array.isArray(achievements)) {
+      achievements.forEach((achievement: string) => {
+        if (!updatedAchievements.includes(achievement)) {
+          updatedAchievements.push(achievement);
+        }
+      });
+    }
+    
+    // Обновляем пользователя (если есть изменения)
+    if (username || region) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(username && { username }),
+          ...(region && { region })
+        }
+      });
+    }
+    
+    // Обновляем профиль
+    const updatedProfile = await prisma.profile.update({
+      where: { userId },
+      data: {
+        ...(bio && { bio }),
+        ...(location && { location }),
+        ...(avatar && { avatar }),
+        achievements: updatedAchievements
+      }
+    });
+    
+    // Получаем обновленного пользователя
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true }
+    });
+    
+    // Проверяем, заслужил ли пользователь знак доверия
+    let hasTrustBadge = false;
+    if (updatedUser?.profile?.tradeCount && updatedUser.profile.tradeCount >= 5 && 
+        updatedUser.profile.rating && updatedUser.profile.rating >= 4.0) {
+      // Добавляем ачивку Trusted Collector, если еще нет
+      if (!updatedAchievements.includes('Trusted Collector')) {
+        updatedAchievements.push('Trusted Collector');
+        await prisma.profile.update({
+          where: { userId },
+          data: { achievements: updatedAchievements }
+        });
+      }
+      hasTrustBadge = true;
+    }
+    
+    res.json({
+      success: true,
+      user: updatedUser,
+      profile: updatedProfile,
+      hasTrustBadge,
+      newAchievement: !hasProfileCustomizer ? 'Profile Customizer' : null
+    });
+  } catch (error: any) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Загрузить аватар
+app.post('/api/profile/avatar', upload.single('avatar'), async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    
+    // Обновляем профиль с новым аватаром
+    await prisma.profile.update({
+      where: { userId },
+      data: { avatar: avatarUrl }
+    });
+    
+    res.json({ 
+      success: true, 
+      avatarUrl 
+    });
+  } catch (error: any) {
+    console.error('Error uploading avatar:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить wishlist пользователя
+app.get('/api/users/:id/wishlist', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const wishlistItems = await prisma.wishlistItem.findMany({
+      where: { userId: id },
+      include: {
+        figurine: true
+      },
+      orderBy: { addedAt: 'desc' },
+      take: 6 // Ограничиваем для предпросмотра
+    });
+    
+    res.json(wishlistItems);
+  } catch (error: any) {
+    console.error('Error fetching user wishlist:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить trade ads пользователя
+app.get('/api/users/:id/trade-ads', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const ads = await prisma.tradeAd.findMany({
+      where: { 
+        userId: id,
+        status: 'ACTIVE'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            region: true,
+            profile: {
+              select: {
+                avatar: true,
+                rating: true
+              }
+            }
+          }
+        },
+        figurine: {
+          select: {
+            name: true,
+            series: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 6 // Ограничиваем для предпросмотра
+    });
+    
+    res.json(ads);
+  } catch (error: any) {
+    console.error('Error fetching user trade ads:', error);
+    res.status(500).json({ error: error.message });
+  }
+});

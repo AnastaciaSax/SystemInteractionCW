@@ -25,6 +25,7 @@ interface WishlistCardProps {
   onRemoveFromWishlist?: (wishlistItemId: string) => Promise<void>;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
+  showActions?: boolean;
 }
 
 const WishlistCard: React.FC<WishlistCardProps> = ({
@@ -37,6 +38,7 @@ const WishlistCard: React.FC<WishlistCardProps> = ({
   onRemoveFromWishlist,
   onSuccess,
   onError,
+   showActions = true,
 }) => {
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -212,8 +214,8 @@ const WishlistCard: React.FC<WishlistCardProps> = ({
               Year: {figurine.year}
             </Typography>
           </Box>
-
-          {/* Кнопки действий */}
+                    {/* Кнопки действий */}
+{showActions && (
           <Box sx={{ display: 'flex', gap: 1 }}>
             {!isInWishlist ? (
               // Кнопка добавления в вишлист
@@ -350,6 +352,7 @@ const WishlistCard: React.FC<WishlistCardProps> = ({
               </>
             )}
           </Box>
+           )}
         </Box>
       </Box>
 
