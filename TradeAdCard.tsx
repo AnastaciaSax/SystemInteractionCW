@@ -1,4 +1,3 @@
-// client/src/components/cards/TradeAdCard.tsx
 import React, { useState } from 'react';
 import {
   Box,
@@ -19,6 +18,7 @@ import TradeAdForm from '../forms/TradeAdForm';
 interface TradeAdCardProps {
   ad: TradeAdWithDetails;
   isOwner?: boolean;
+  showActions?: boolean;
   onDelete?: (id: string) => Promise<void>;
   onUpdate?: (id: string, data: any) => Promise<void>;
   onSuccess?: (message: string) => void; 
@@ -28,6 +28,7 @@ interface TradeAdCardProps {
 const TradeAdCard: React.FC<TradeAdCardProps> = ({ 
   ad, 
   isOwner = false, 
+  showActions = true,
   onDelete, 
   onUpdate,
   onSuccess,
@@ -188,138 +189,140 @@ const TradeAdCard: React.FC<TradeAdCardProps> = ({
           </Box>
 
           {/* Кнопки действий */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {/* Кнопка Offer trade */}
-            <IconButton
-              onClick={handleDetailsClick}
-              onMouseEnter={() => setOfferHovered(true)}
-              onMouseLeave={() => setOfferHovered(false)}
-              sx={{
-                width: 60,
-                height: 60,
-                borderRadius: '50%',
-                flexShrink: 0,
-                transition: 'all 0.2s ease',
-                padding: 0,
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                },
-              }}
-            >
-              <Box
+          {showActions && (
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {/* Кнопка Offer trade */}
+              <IconButton
+                onClick={handleDetailsClick}
+                onMouseEnter={() => setOfferHovered(true)}
+                onMouseLeave={() => setOfferHovered(false)}
                 sx={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  transition: 'all 0.2s ease',
+                  padding: 0,
+                  '&:hover': {
+                    transform: 'scale(1.05)',
+                  },
                 }}
               >
-                <img
-                  src={offerHovered 
-                    ? '/assets/offer-trade-active.svg' 
-                    : '/assets/offer-trade-default.svg'
-                  }
-                  alt="Offer trade"
-                  style={{ 
-                    width: '90%',
-                    height: '90%',
-                    objectFit: 'contain',
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-              </Box>
-            </IconButton>
-
-            {/* Кнопки управления для владельца */}
-            {isOwner && (
-              <>
-                {/* Кнопка редактирования */}
-                <IconButton
-                  onClick={handleEditClick}
-                  onMouseEnter={() => setEditHovered(true)}
-                  onMouseLeave={() => setEditHovered(false)}
+                <Box
                   sx={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  <Box
-                    sx={{
-                      width: '100%',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                  <img
+                    src={offerHovered 
+                      ? '/assets/offer-trade-active.svg' 
+                      : '/assets/offer-trade-default.svg'
+                    }
+                    alt="Offer trade"
+                    style={{ 
+                      width: '90%',
+                      height: '90%',
+                      objectFit: 'contain',
+                      transition: 'all 0.2s ease',
                     }}
-                  >
-                    <img
-                      src={editHovered 
-                        ? '/assets/edit-active.svg' 
-                        : '/assets/edit-default.svg'
-                      }
-                      alt="Edit"
-                      style={{ 
-                        width: '90%',
-                        height: '90%',
-                        objectFit: 'contain',
-                        transition: 'all 0.2s ease',
-                      }}
-                    />
-                  </Box>
-                </IconButton>
+                  />
+                </Box>
+              </IconButton>
 
-                {/* Кнопка удаления */}
-                <IconButton
-                  onClick={handleDeleteClick}
-                  onMouseEnter={() => setDeleteHovered(true)}
-                  onMouseLeave={() => setDeleteHovered(false)}
-                  sx={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: '50%',
-                    flexShrink: 0,
-                    transition: 'all 0.2s ease',
-                    padding: 0,
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
-                  }}
-                >
-                  <Box
+              {/* Кнопки управления для владельца */}
+              {isOwner && (
+                <>
+                  {/* Кнопка редактирования */}
+                  <IconButton
+                    onClick={handleEditClick}
+                    onMouseEnter={() => setEditHovered(true)}
+                    onMouseLeave={() => setEditHovered(false)}
                     sx={{
-                      width: '100%',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      width: 60,
+                      height: 60,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                      },
                     }}
                   >
-                    <img
-                      src={deleteHovered 
-                        ? '/assets/delete-active.svg' 
-                        : '/assets/delete-default.svg'
-                      }
-                      alt="Delete"
-                      style={{ 
-                        width: '90%',
-                        height: '90%',
-                        objectFit: 'contain',
-                        transition: 'all 0.2s ease',
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
-                    />
-                  </Box>
-                </IconButton>
-              </>
-            )}
-          </Box>
+                    >
+                      <img
+                        src={editHovered 
+                          ? '/assets/edit-active.svg' 
+                          : '/assets/edit-default.svg'
+                        }
+                        alt="Edit"
+                        style={{ 
+                          width: '90%',
+                          height: '90%',
+                          objectFit: 'contain',
+                          transition: 'all 0.2s ease',
+                        }}
+                      />
+                    </Box>
+                  </IconButton>
+
+                  {/* Кнопка удаления */}
+                  <IconButton
+                    onClick={handleDeleteClick}
+                    onMouseEnter={() => setDeleteHovered(true)}
+                    onMouseLeave={() => setDeleteHovered(false)}
+                    sx={{
+                      width: 60,
+                      height: 60,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      '&:hover': {
+                        transform: 'scale(1.05)',
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={deleteHovered 
+                          ? '/assets/delete-active.svg' 
+                          : '/assets/delete-default.svg'
+                        }
+                        alt="Delete"
+                        style={{ 
+                          width: '90%',
+                          height: '90%',
+                          objectFit: 'contain',
+                          transition: 'all 0.2s ease',
+                        }}
+                      />
+                    </Box>
+                  </IconButton>
+                </>
+              )}
+            </Box>
+          )}
         </Box>
       </Box>
 

@@ -21,7 +21,7 @@ const TradeAdsPreview: React.FC<TradeAdsPreviewProps> = ({ tradeAds, username })
             fontWeight: 400,
           }}
         >
-          {username}'s Trade Offers 🏷️
+          {username}'s TradeAds 🏷️
         </Typography>
         
         <Typography

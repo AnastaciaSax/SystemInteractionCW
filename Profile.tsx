@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Container } from '@mui/material';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
-import PageBanner from '../../components/PageBanner';
 import ProfileHeader from './components/ProfileHeader';
 import ProfileContent from './components/ProfileContent';
 import Notification from '../../components/ui/Notification';
-import { profileAPI, usersAPI, tradeAPI, wishlistAPI } from '../../services/api';
+import { profileAPI } from '../../services/api';
 import './Profile.css';
 
 const Profile: React.FC = () => {
@@ -66,21 +65,23 @@ const Profile: React.FC = () => {
 
       // Загружаем данные профиля пользователя
       const profileResponse = await profileAPI.getProfile(userId);
-      const userData = profileResponse.data;
+      const userData = profileResponse.data as any;
       setProfileUser(userData);
       
       // Загружаем отзывы
-      if (userData?.ratingsReceived) {
+      if (userData && userData.ratingsReceived && Array.isArray(userData.ratingsReceived)) {
         setUserRatings(userData.ratingsReceived);
+      } else {
+        setUserRatings([]);
       }
       
       // Загружаем вишлист пользователя
       const wishlistResponse = await profileAPI.getUserWishlist(userId);
-      setUserWishlist(wishlistResponse.data || []);
+      setUserWishlist(wishlistResponse.data as any[] || []);
       
       // Загружаем объявления пользователя
       const tradeAdsResponse = await profileAPI.getUserTradeAds(userId);
-      setUserTradeAds(tradeAdsResponse.data || []);
+      setUserTradeAds(tradeAdsResponse.data as any[] || []);
       
     } catch (error) {
       console.error('Error fetching profile data:', error);
@@ -101,20 +102,21 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleUpdateProfile = async (data: any) => {
+  const handleUpdateProfile = async (data: any): Promise<boolean> => {
     try {
       const response = await profileAPI.updateProfile(data);
+      const responseData = response.data as any;
       
-      if (response.data.success) {
+      if (responseData.success) {
         // Обновляем данные текущего пользователя
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        setCurrentUser(response.data.user);
-        setProfileUser(response.data.user);
+        localStorage.setItem('user', JSON.stringify(responseData.user));
+        setCurrentUser(responseData.user);
+        setProfileUser(responseData.user);
         
         // Показываем уведомление об ачивке
-        if (response.data.newAchievement) {
+        if (responseData.newAchievement) {
           showNotification(
-            `🎉 Yay! You earned the "${response.data.newAchievement}" achievement!`,
+            `🎉 Yay! You earned the "${responseData.newAchievement}" achievement!`,
             'success'
           );
         } else {
@@ -123,6 +125,7 @@ const Profile: React.FC = () => {
         
         return true;
       }
+      return false;
     } catch (error) {
       console.error('Error updating profile:', error);
       showNotification('Failed to update profile', 'error');
@@ -130,19 +133,21 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleAvatarUpload = async (file: File) => {
+  const handleAvatarUpload = async (file: File): Promise<boolean> => {
     try {
       const formData = new FormData();
       formData.append('avatar', file);
       
       const response = await profileAPI.uploadAvatar(formData);
+      const responseData = response.data as any;
       
-      if (response.data.success) {
+      if (responseData.success) {
         // Обновляем аватар в профиле
-        await handleUpdateProfile({ avatar: response.data.avatarUrl });
+        await handleUpdateProfile({ avatar: responseData.avatarUrl });
         showNotification('Avatar updated successfully! 📸', 'success');
         return true;
       }
+      return false;
     } catch (error) {
       console.error('Error uploading avatar:', error);
       showNotification('Failed to upload avatar', 'error');
@@ -190,16 +195,6 @@ const Profile: React.FC = () => {
         duration={5000}
       />
 
-      <PageBanner
-        title="Profile"
-        breadcrumbs={[
-          { label: 'Home', path: '/' },
-          { label: 'Profile', path: '/profile' },
-          profileUser?.username && { label: profileUser.username },
-        ].filter(Boolean) as any}
-        imageUrl="/assets/banner-profile.png"
-      />
-
       <Container
         sx={{
           maxWidth: '1280px !important',
@@ -215,7 +210,14 @@ const Profile: React.FC = () => {
           onAvatarUpload={handleAvatarUpload}
         />
 
-        <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', mb: 4 }}>
+        {/* Переключатель вкладок - выровнен по правому краю как в макете */}
+        <Box sx={{ 
+          width: '100%', 
+          display: 'flex', 
+          justifyContent: 'flex-end', // Выравнивание по правому краю
+          alignItems: 'center',
+          mb: 4 
+        }}>
           <Box
             sx={{
               width: '622px',
@@ -228,66 +230,95 @@ const Profile: React.FC = () => {
               overflow: 'hidden',
             }}
           >
-            <Box
-              onClick={() => handleTabChange('user-data')}
-              sx={{
-                flex: 1,
-                alignSelf: 'stretch',
-                background: activeTab === 'user-data' ? '#F05EBA' : 'transparent',
-                borderRadius: '10px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                '&:hover': {
-                  backgroundColor: activeTab === 'user-data' ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
-                },
-              }}
-            >
+            {isOwnProfile() ? (
+              // Для владельца профиля показываем обе вкладки
+              <>
+                <Box
+                  onClick={() => handleTabChange('user-data')}
+                  sx={{
+                    flex: 1,
+                    alignSelf: 'stretch',
+                    background: activeTab === 'user-data' ? '#F05EBA' : 'transparent',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: activeTab === 'user-data' ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      textAlign: 'center',
+                      color: activeTab === 'user-data' ? 'white' : '#560D30',
+                      fontSize: '20px',
+                      fontFamily: '"McLaren", cursive',
+                      fontWeight: 400,
+                      padding: '4px 0',
+                    }}
+                  >
+                    USER DATA
+                  </Box>
+                </Box>
+                
+                <Box
+                  onClick={() => handleTabChange('settings')}
+                  sx={{
+                    flex: 1,
+                    alignSelf: 'stretch',
+                    background: activeTab === 'settings' ? '#F05EBA' : 'transparent',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: activeTab === 'settings' ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      textAlign: 'center',
+                      color: activeTab === 'settings' ? 'white' : '#560D30',
+                      fontSize: '20px',
+                      fontFamily: '"McLaren", cursive',
+                      fontWeight: 400,
+                      padding: '4px 0',
+                    }}
+                  >
+                    SETTINGS
+                  </Box>
+                </Box>
+              </>
+            ) : (
+              // Для гостей показываем только USER DATA как активную вкладку
               <Box
-                sx={{
-                  textAlign: 'center',
-                  color: activeTab === 'user-data' ? 'white' : '#560D30',
-                  fontSize: '20px',
-                  fontFamily: '"McLaren", cursive',
-                  fontWeight: 400,
-                  padding: '4px 0',
-                }}
-              >
-                USER DATA
-              </Box>
-            </Box>
-            
-            {isOwnProfile() && (
-              <Box
-                onClick={() => handleTabChange('settings')}
                 sx={{
                   flex: 1,
                   alignSelf: 'stretch',
-                  background: activeTab === 'settings' ? '#F05EBA' : 'transparent',
+                  background: '#F05EBA', // Всегда активная для гостей
                   borderRadius: '10px',
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    backgroundColor: activeTab === 'settings' ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
-                  },
                 }}
               >
                 <Box
                   sx={{
                     textAlign: 'center',
-                    color: activeTab === 'settings' ? 'white' : '#560D30',
+                    color: 'white',
                     fontSize: '20px',
                     fontFamily: '"McLaren", cursive',
                     fontWeight: 400,
                     padding: '4px 0',
                   }}
                 >
-                  SETTINGS
+                  USER DATA
                 </Box>
               </Box>
             )}
