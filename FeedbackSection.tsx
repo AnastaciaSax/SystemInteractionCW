@@ -4,6 +4,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
+import Pagination from '../../../components/ui/Pagination';
 
 interface FeedbackSectionProps {
   user: any;
@@ -22,16 +23,8 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedRatings = ratings.slice(startIndex, startIndex + itemsPerPage);
 
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   // Функция для отображения звезд рейтинга
@@ -50,11 +43,12 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
   };
 
   return (
-    <Box sx={{ mb: 8 }}>
+    <Box sx={{ mb: 8, width: '100%' }}>
+      {/* Заголовок с символом */}
       <Typography
         variant="h4"
         sx={{
-          textAlign: 'center',
+          textAlign: 'left',
           color: 'var(--title, #560D30)',
           fontSize: { xs: '28px', md: '36px' },
           fontFamily: '"McLaren", cursive',
@@ -62,18 +56,25 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
           mb: 4,
         }}
       >
-        FeedBack
+        FeedBack 💬
       </Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', lg: 'row' }, gap: 4 }}>
-        {/* Общий рейтинг */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', lg: 'row' }, 
+        gap: { xs: 4, lg: '156px' },
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+      }}>
+        {/* Общий рейтинг - слева */}
         <Box
           sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minWidth: { xs: '100%', lg: '250px' },
+            minWidth: { xs: '100%', lg: 'auto' },
+            order: { xs: 2, lg: 1 },
           }}
         >
           <Typography
@@ -82,6 +83,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
               fontSize: { xs: '48px', md: '64px' },
               fontFamily: '"Nobile", sans-serif',
               fontWeight: 400,
+              mb: 1,
             }}
           >
             ★ {averageRating.toFixed(1)}
@@ -96,11 +98,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
           >
             Based on {ratings.length} reviews
           </Typography>
-          {renderStars(averageRating)}
         </Box>
 
-        {/* Карточки с отзывами */}
-        <Box sx={{ flex: 1 }}>
+        {/* Карточки с отзывами - справа */}
+        <Box sx={{ 
+          flex: 1, 
+          width: '100%',
+          order: { xs: 1, lg: 2 },
+        }}>
           {displayedRatings.length > 0 ? (
             <>
               <Box
@@ -111,7 +116,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                     sm: 'repeat(2, 1fr)',
                     md: 'repeat(3, 1fr)',
                   },
-                  gap: 3,
+                  gap: '20px',
                   mb: 4,
                 }}
               >
@@ -119,22 +124,29 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                   <Box
                     key={rating.id}
                     sx={{
-                      padding: 3,
+                      width: { xs: '100%', md: '305px' },
+                      maxWidth: '100%',
+                      padding: '20px',
                       background: 'rgba(153, 242, 247, 0.39)',
                       borderRadius: '40px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 2,
+                      gap: '14px',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-5px)',
+                        boxShadow: '0 8px 20px rgba(236, 46, 166, 0.15)',
+                      },
                     }}
                   >
                     {/* Заголовок карточки */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <img
                         src={rating.rater?.profile?.avatar || '/assets/default-avatar.png'}
                         alt={rating.rater?.username}
                         style={{
-                          width: 60,
-                          height: 60,
+                          width: 86,
+                          height: 86,
                           borderRadius: '50%',
                           objectFit: 'cover',
                         }}
@@ -143,9 +155,10 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                         <Typography
                           sx={{
                             color: '#82164A',
-                            fontSize: '18px',
+                            fontSize: '20px',
                             fontFamily: '"Nobile", sans-serif',
                             fontWeight: 700,
+                            lineHeight: '30px',
                           }}
                         >
                           {rating.rater?.username}
@@ -153,9 +166,11 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                         <Typography
                           sx={{
                             color: '#82164A',
-                            fontSize: '14px',
+                            fontSize: '16px',
                             fontFamily: '"Nobile", sans-serif',
                             fontStyle: 'italic',
+                            fontWeight: 400,
+                            lineHeight: '30px',
                           }}
                         >
                           {rating.rater?.region || 'Unknown region'}
@@ -163,7 +178,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                       </Box>
                     </Box>
 
-                    {/* Рейтинг */}
+                    {/* Рейтинг - звезды в отзывах оставляем */}
                     <Box>
                       {renderStars(rating.score)}
                     </Box>
@@ -172,7 +187,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                     <Typography
                       sx={{
                         color: '#804A64',
-                        fontSize: '14px',
+                        fontSize: '16px',
                         fontFamily: '"Nobile", sans-serif',
                         fontWeight: 400,
                         lineHeight: 1.6,
@@ -199,92 +214,17 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                 ))}
               </Box>
 
-              {/* Пагинация */}
+              {/* Пагинация с использованием готового компонента */}
               {totalPages > 1 && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: 2,
-                    mt: 4,
-                  }}
-                >
-                  <IconButton
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                    sx={{
-                      width: 50,
-                      height: 50,
-                      background: 'rgba(255, 255, 255, 0.35)',
-                      borderRadius: '90px',
-                      outline: '1px #F05EBA solid',
-                      outlineOffset: '-1px',
-                      '&:hover': {
-                        backgroundColor: 'rgba(240, 94, 186, 0.1)',
-                      },
-                      '&:disabled': {
-                        opacity: 0.3,
-                      },
-                    }}
-                  >
-                    <ChevronLeftIcon sx={{ color: '#560D30' }} />
-                  </IconButton>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Box
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      sx={{
-                        width: 50,
-                        height: 50,
-                        background: currentPage === page ? '#F05EBA' : 'rgba(255, 255, 255, 0.35)',
-                        borderRadius: '90px',
-                        outline: currentPage === page ? 'none' : '1px #F05EBA solid',
-                        outlineOffset: '-1px',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: currentPage === page ? '#F05EBA' : 'rgba(240, 94, 186, 0.1)',
-                        },
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          color: currentPage === page ? 'white' : '#560D30',
-                          fontSize: '20px',
-                          fontFamily: '"McLaren", cursive',
-                          fontWeight: 400,
-                        }}
-                      >
-                        {page}
-                      </Typography>
-                    </Box>
-                  ))}
-
-                  <IconButton
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                    sx={{
-                      width: 50,
-                      height: 50,
-                      background: 'rgba(255, 255, 255, 0.35)',
-                      borderRadius: '90px',
-                      outline: '1px #F05EBA solid',
-                      outlineOffset: '-1px',
-                      '&:hover': {
-                        backgroundColor: 'rgba(240, 94, 186, 0.1)',
-                      },
-                      '&:disabled': {
-                        opacity: 0.3,
-                      },
-                    }}
-                  >
-                    <ChevronRightIcon sx={{ color: '#560D30' }} />
-                  </IconButton>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    variant="numbers"
+                    color="custom"
+                    size="medium"
+                  />
                 </Box>
               )}
             </>

@@ -11,6 +11,8 @@ import {
   Paper,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
+// Импортируем Grid
+import { Grid } from '@mui/material';
 
 interface ProfileSettingsProps {
   user: any;
@@ -57,9 +59,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
   };
 
   const regionOptions = [
-    { value: 'USA', label: 'United States' },
-    { value: 'EU', label: 'Europe' },
-    { value: 'CIS', label: 'CIS Countries' },
+    { value: 'USA', label: 'US' },
+    { value: 'EU', label: 'EU' },
+    { value: 'CIS', label: 'CIS' },
     { value: 'ASIA', label: 'Asia' },
     { value: 'OTHER', label: 'Other' },
   ];
@@ -233,8 +235,5 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     </Box>
   );
 };
-
-// Импортируем Grid
-import { Grid } from '@mui/material';
 
 export default ProfileSettings;

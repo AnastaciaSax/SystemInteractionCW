@@ -21,7 +21,7 @@ const WishlistPreview: React.FC<WishlistPreviewProps> = ({ wishlist, username })
             fontWeight: 400,
           }}
         >
-          {username}'s Wishlist Dreams ✨
+          {username}'s Wishlist Dreams 🎯
         </Typography>
         
         <Typography

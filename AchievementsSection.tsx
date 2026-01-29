@@ -92,7 +92,7 @@ const AchievementsSection: React.FC<AchievementsSectionProps> = ({ user, isOwnPr
         }}
       >
         <EmojiEventsIcon sx={{ color: '#EC2EA6', fontSize: 40 }} />
-        Achievements 🏆
+        Achievements
       </Typography>
 
       {/* Полученные достижения */}
