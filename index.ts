@@ -15,8 +15,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Настройка загрузки файлов
-const storage = multer.diskStorage({
+// Настройка загрузки файлов для объявлений
+const tradeAdsStorage = multer.diskStorage({
   destination: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     const uploadDir = 'uploads/trade-ads';
     if (!fs.existsSync(uploadDir)) {
@@ -30,8 +30,35 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
-  storage,
+// Настройка загрузки файлов для аватаров
+const avatarsStorage = multer.diskStorage({
+  destination: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+    const uploadDir = 'uploads/avatars';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadTradeAds = multer({ 
+  storage: tradeAdsStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+const uploadAvatars = multer({ 
+  storage: avatarsStorage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
   fileFilter: (req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     if (file.mimetype.startsWith('image/')) {
@@ -297,7 +324,7 @@ app.get('/api/trade-ads/my', async (req: any, res) => {
 });
 
 // Создать новое объявление
-app.post('/api/trade-ads', upload.single('photo'), async (req: any, res) => {
+app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
@@ -387,7 +414,7 @@ app.post('/api/trade-ads', upload.single('photo'), async (req: any, res) => {
 });
 
 // Обновить объявление
-app.put('/api/trade-ads/:id', upload.single('photo'), async (req: any, res) => {
+app.put('/api/trade-ads/:id', uploadTradeAds.single('photo'), async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
@@ -841,7 +868,7 @@ app.put('/api/profile', async (req: any, res) => {
 });
 
 // Загрузить аватар
-app.post('/api/profile/avatar', upload.single('avatar'), async (req: any, res) => {
+app.post('/api/profile/avatar', uploadAvatars.single('avatar'), async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     
@@ -864,9 +891,18 @@ app.post('/api/profile/avatar', upload.single('avatar'), async (req: any, res) =
       data: { avatar: avatarUrl }
     });
     
+    // Получаем обновленного пользователя с профилем
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { 
+        profile: true 
+      }
+    });
+    
     res.json({ 
       success: true, 
-      avatarUrl 
+      avatarUrl,
+      user: updatedUser
     });
   } catch (error: any) {
     console.error('Error uploading avatar:', error);

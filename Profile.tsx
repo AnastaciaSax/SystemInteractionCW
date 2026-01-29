@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Container } from '@mui/material';
+import { Box, Container, Skeleton } from '@mui/material';
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import ProfileHeader from './components/ProfileHeader';
@@ -134,27 +134,33 @@ const Profile: React.FC = () => {
   };
 
   const handleAvatarUpload = async (file: File): Promise<boolean> => {
-    try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      
-      const response = await profileAPI.uploadAvatar(formData);
-      const responseData = response.data as any;
-      
-      if (responseData.success) {
-        // Обновляем аватар в профиле
-        await handleUpdateProfile({ avatar: responseData.avatarUrl });
-        showNotification('Avatar updated successfully! 📸', 'success');
-        return true;
+  try {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    
+    const response = await profileAPI.uploadAvatar(formData);
+    const responseData = response.data as any;
+    
+    if (responseData.success) {
+      // Обновляем данные пользователя из ответа сервера
+      if (responseData.user) {
+        localStorage.setItem('user', JSON.stringify(responseData.user));
+        setCurrentUser(responseData.user);
+        setProfileUser(responseData.user);
       }
-      return false;
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      showNotification('Failed to upload avatar', 'error');
-      return false;
+      
+      showNotification('Avatar updated successfully! 📸', 'success');
+      return true;
     }
-  };
+    return false;
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
+    showNotification('Failed to upload avatar', 'error');
+    return false;
+  }
+};
 
+  // Skeleton для загрузки
   if (loading) {
     return (
       <Box
@@ -166,9 +172,99 @@ const Profile: React.FC = () => {
         }}
       >
         <Header />
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div className="loading-spinner">Loading profile...</div>
-        </Box>
+        
+        <Container
+          sx={{
+            maxWidth: '1280px !important',
+            py: { xs: 4, sm: 6, md: 8 },
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* Skeleton для заголовка профиля */}
+          <Skeleton
+            variant="rectangular"
+            width="100%"
+            height={276}
+            sx={{
+              borderRadius: '20px',
+              mb: 4,
+              bgcolor: 'rgba(246, 196, 212, 0.5)',
+            }}
+          />
+
+          {/* Skeleton для переключателя вкладок */}
+          <Box sx={{ 
+            width: '100%', 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            mb: 4 
+          }}>
+            <Skeleton
+              variant="rectangular"
+              width={622}
+              height={37}
+              sx={{
+                borderRadius: '10px',
+                bgcolor: 'rgba(255, 255, 255, 0.8)',
+              }}
+            />
+          </Box>
+
+          {/* Skeleton для контента */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Skeleton для секции отзывов */}
+            <Box>
+              <Skeleton
+                variant="text"
+                width={200}
+                height={48}
+                sx={{ mb: 3, bgcolor: 'rgba(86, 13, 48, 0.2)' }}
+              />
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton
+                    key={i}
+                    variant="rectangular"
+                    width={300}
+                    height={200}
+                    sx={{
+                      borderRadius: '40px',
+                      bgcolor: 'rgba(153, 242, 247, 0.3)',
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+
+            {/* Skeleton для вишлиста */}
+            <Box>
+              <Skeleton
+                variant="text"
+                width={300}
+                height={48}
+                sx={{ mb: 3, bgcolor: 'rgba(86, 13, 48, 0.2)' }}
+              />
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                {[1, 2, 3].map((i) => (
+                  <Skeleton
+                    key={i}
+                    variant="rectangular"
+                    width={350}
+                    height={400}
+                    sx={{
+                      borderRadius: '10px',
+                      bgcolor: 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  />
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        </Container>
+
         <Footer />
       </Box>
     );

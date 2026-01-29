@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Box, IconButton } from '@mui/material';
+import { Box, IconButton, CircularProgress } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DiamondIcon from '@mui/icons-material/Diamond';
 import Tooltip from '@mui/material/Tooltip';
@@ -20,6 +20,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onAvatarUpload,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Проверяем, заслужил ли пользователь знак доверия
@@ -46,10 +47,29 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     }
 
     setIsUploading(true);
+    
+    // Создаем временный URL для предпросмотра
+    const tempUrl = URL.createObjectURL(file);
+    setCurrentAvatar(tempUrl);
+
     try {
-      await onAvatarUpload(file);
+      const success = await onAvatarUpload(file);
+      if (success) {
+        // После успешной загрузки очищаем временный URL
+        URL.revokeObjectURL(tempUrl);
+        setCurrentAvatar(null);
+      } else {
+        // Если загрузка не удалась, очищаем временный URL и показываем старый аватар
+        URL.revokeObjectURL(tempUrl);
+        setCurrentAvatar(null);
+      }
     } catch (error) {
       console.error('Avatar upload error:', error);
+      // Очищаем временный URL в случае ошибки
+      if (tempUrl) {
+        URL.revokeObjectURL(tempUrl);
+      }
+      setCurrentAvatar(null);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -103,7 +123,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         display: 'flex',
         mb: 4,
         position: 'relative',
-        overflow: 'hidden', // Вернем overflow: hidden, чтобы все было внутри
+        overflow: 'hidden',
       }}
     >
       {/* Розовая подложка */}
@@ -115,7 +135,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           paddingRight: { xs: 2, sm: 4, md: 6 },
           background: 'var(--brand, #F6C4D4)',
           justifyContent: 'flex-start',
-          alignItems: 'flex-start', // Меняем с center на flex-start для правильного выравнивания
+          alignItems: 'flex-start',
           gap: { xs: 2, md: 4 },
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
@@ -127,7 +147,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         {/* Аватар с возможностью редактирования */}
         <Box sx={{ 
           position: 'relative',
-          marginTop: { xs: '-50px', sm: '-60px', md: '-80px' }, // Поднимаем аватар так, чтобы он частично выходил за подложку
+          marginTop: { xs: '-50px', sm: '-60px', md: '-80px' },
         }}>
           <Box
             sx={{
@@ -139,6 +159,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               overflow: 'hidden',
               cursor: isOwnProfile ? 'pointer' : 'default',
               position: 'relative',
+              backgroundColor: '#F6C4D4', // Фон на случай прозрачного изображения
               '&:hover': isOwnProfile ? {
                 '& .edit-overlay': {
                   opacity: 1,
@@ -147,17 +168,46 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             }}
             onClick={handleAvatarClick}
           >
-            <img
-              src={user?.profile?.avatar || '/assets/default-avatar.png'}
-              alt={user?.username || 'User'}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
+            {isUploading ? (
+              // Показываем спиннер во время загрузки
+              <Box
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(246, 196, 212, 0.8)',
+                }}
+              >
+                <CircularProgress 
+                  size={60} 
+                  sx={{ 
+                    color: '#EC2EA6',
+                    '& .MuiCircularProgress-circle': {
+                      strokeLinecap: 'round',
+                    }
+                  }} 
+                />
+              </Box>
+            ) : (
+              <img
+                src={currentAvatar || user?.profile?.avatar || '/assets/default-avatar.png'}
+                alt={user?.username || 'User'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  backgroundColor: '#F6C4D4', // Задний фон для прозрачных изображений
+                }}
+                onError={(e) => {
+                  // Если изображение не загрузилось, показываем дефолтное
+                  e.currentTarget.src = '/assets/default-avatar.png';
+                }}
+              />
+            )}
             
-            {isOwnProfile && (
+            {isOwnProfile && !isUploading && (
               <>
                 <Box
                   className="edit-overlay"
