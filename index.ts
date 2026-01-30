@@ -972,3 +972,255 @@ app.get('/api/users/:id/trade-ads', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Получить чаты пользователя
+app.get('/api/chats', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    // Находим все чаты, где пользователь участник
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      },
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        },
+        receiver: {
+          include: {
+            profile: true
+          }
+        },
+        trade: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    // Группируем сообщения по собеседнику
+    const chatMap = new Map();
+    
+    messages.forEach(msg => {
+      const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
+      
+      if (!chatMap.has(otherUserId)) {
+        chatMap.set(otherUserId, {
+          id: otherUserId,
+          otherUser: {
+            id: otherUser.id,
+            username: otherUser.username,
+            profile: otherUser.profile,
+            region: otherUser.region
+          },
+          lastMessage: msg,
+          tradeAd: msg.trade,
+          unreadCount: 0 // Рассчитываем непрочитанные
+        });
+      }
+    });
+    
+    const chats = Array.from(chatMap.values());
+    
+    // Сортируем по времени последнего сообщения
+    chats.sort((a, b) => 
+      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+    );
+    
+    res.json(chats);
+  } catch (error: any) {
+    console.error('Error fetching chats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить сообщения чата
+app.get('/api/chats/:chatId/messages', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    const chatId = req.params.chatId; // ID другого пользователя
+    
+    const messages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId, receiverId: chatId },
+          { senderId: chatId, receiverId: userId }
+        ]
+      },
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        },
+        trade: true
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 100 // Лимит сообщений
+    });
+    
+    res.json(messages);
+  } catch (error: any) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Отправить сообщение
+app.post('/api/messages', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { receiverId, content, tradeId } = req.body;
+    
+    // Создаем сообщение
+    const message = await prisma.message.create({
+      data: {
+        senderId: userId,
+        receiverId,
+        content,
+        tradeId,
+        isRead: false
+      },
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        }
+      }
+    });
+    
+    res.json(message);
+  } catch (error: any) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Отправить trade offer
+app.post('/api/trade-offers', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { tradeAdId, message } = req.body;
+    
+    // Создаем trade offer
+    const tradeOffer = await prisma.tradeOffer.create({
+      data: {
+        tradeAdId,
+        userId,
+        message,
+        status: 'PENDING'
+      }
+    });
+    
+    res.json(tradeOffer);
+  } catch (error: any) {
+    console.error('Error creating trade offer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Принять trade
+app.post('/api/trades/:id/accept', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const tradeId = req.params.id;
+    
+    // Обновляем статус trade offer
+    const tradeOffer = await prisma.tradeOffer.updateMany({
+      where: {
+        tradeAdId: tradeId,
+        userId: userId
+      },
+      data: {
+        status: 'ACCEPTED'
+      }
+    });
+    
+    // Обновляем статус объявления
+    const tradeAd = await prisma.tradeAd.update({
+      where: { id: tradeId },
+      data: { status: 'COMPLETED' }
+    });
+    
+    res.json({ success: true, tradeAd });
+  } catch (error: any) {
+    console.error('Error accepting trade:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Отправить жалобу
+app.post('/api/complaints', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { reportedUserId, reason, details, chatId } = req.body;
+    
+    // Здесь можно сохранить жалобу в отдельную таблицу
+    // Пока просто логируем
+    console.log('Complaint submitted:', {
+      reporterId: userId,
+      reportedUserId,
+      reason,
+      details,
+      chatId,
+      timestamp: new Date()
+    });
+    
+    res.json({ success: true, message: 'Complaint submitted successfully' });
+  } catch (error: any) {
+    console.error('Error submitting complaint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});

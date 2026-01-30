@@ -152,4 +152,74 @@ export const profileAPI = {
   getUserTradeAds: (userId: string) => api.get(`/users/${userId}/trade-ads`),
 };
 
+export const chatAPI = {
+  getChats: () => api.get<Chat[]>('/chats'),
+  getMessages: (chatId: string) => api.get<Message[]>(`/chats/${chatId}/messages`),
+  sendMessage: (data: FormData) => 
+    api.post<Message>('/messages', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  sendTradeOffer: (data: FormData) => 
+    api.post<TradeOffer>('/trade-offers', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  acceptTrade: (tradeId: string) => 
+    api.post(`/trades/${tradeId}/accept`),
+  submitComplaint: (data: { 
+    reportedUserId: string; 
+    reason: string; 
+    details: string;
+    chatId?: string;
+  }) => api.post('/complaints', data),
+};
+
+// Типы
+export interface Chat {
+  id: string;
+  otherUser: {
+    id: string;
+    username: string;
+    profile?: {
+      avatar: string;
+    };
+    region?: string;
+  };
+  lastMessage?: Message;
+  tradeAd?: {
+    id: string;
+    title: string;
+    status: string;
+    photo?: string;
+  };
+  unreadCount: number;
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  tradeId?: string;
+  imageUrl?: string;
+  isRead: boolean;
+  createdAt: string;
+  sender?: {
+    id: string;
+    username: string;
+    profile?: {
+      avatar: string;
+    };
+  };
+}
+
+export interface TradeOffer {
+  id: string;
+  tradeAdId: string;
+  userId: string;
+  message: string;
+  imageUrl: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+}
+
 export default api;
