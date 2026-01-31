@@ -155,22 +155,36 @@ export const profileAPI = {
 export const chatAPI = {
   getChats: () => api.get<Chat[]>('/chats'),
   getMessages: (chatId: string) => api.get<Message[]>(`/chats/${chatId}/messages`),
-  sendMessage: (data: FormData) => 
-    api.post<Message>('/messages', data, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
-  sendTradeOffer: (data: FormData) => 
-    api.post<TradeOffer>('/trade-offers', data, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
-  acceptTrade: (tradeId: string) => 
-    api.post(`/trades/${tradeId}/accept`),
+  sendMessage: (data: { 
+    receiverId: string; 
+    content: string; 
+    tradeId?: string 
+  }) => api.post<Message>('/messages', data),
+  sendTradeOffer: (data: { 
+    tradeAdId: string; 
+    message: string; 
+    imageUrl: string 
+  }) => api.post<{ tradeOffer: TradeOffer; message: Message }>('/trade-offers', data),
+  acceptTradeOffer: (offerId: string, accept: boolean) => 
+    api.post(`/trade-offers/${offerId}/accept`, { accept }),
+  finishTrade: (tradeId: string, data: { rating?: number; comment?: string }) => 
+    api.post(`/trades/${tradeId}/finish`, data),
   submitComplaint: (data: { 
     reportedUserId: string; 
     reason: string; 
     details: string;
     chatId?: string;
   }) => api.post('/complaints', data),
+  sendTradeOfferWithFile: (formData: FormData) => 
+    api.post<{ 
+      success: boolean; 
+      tradeOffer: TradeOffer; 
+      message: Message & { imageUrl?: string }
+    }>('/chat/trade-offer', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    }),
 };
 
 // Типы
@@ -217,7 +231,6 @@ export interface TradeOffer {
   tradeAdId: string;
   userId: string;
   message: string;
-  imageUrl: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   createdAt: string;
 }

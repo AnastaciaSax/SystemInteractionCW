@@ -1,0 +1,472 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  IconButton,
+  TextField,
+  Skeleton,
+  Tooltip,
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import TradeOfferModal from './TradeOfferModal';
+import ComplaintModal from './ComplaintModal';
+import FinishTradeModal from './FinishTradeModal';
+import MessageBubble from './MessageBubble';
+import { Chat, Message } from '../../../services/api';
+
+// Иконки из public/assets
+const ProfileIcon = ({ active }: { active?: boolean }) => (
+  <img 
+    src={active ? "/assets/profile-view-active.svg" : "/assets/profile-view-default.svg"} 
+    alt="Profile" 
+    style={{ width: 35, height: 35 }}
+  />
+);
+
+const ComplaintIcon = ({ active }: { active?: boolean }) => (
+  <img 
+    src={active ? "/assets/complaint-active.svg" : "/assets/complaint-default.svg"} 
+    alt="Complaint" 
+    style={{ width: 35, height: 35 }}
+  />
+);
+
+const AttachIcon = ({ active }: { active?: boolean }) => (
+  <img 
+    src={active ? "/assets/attach-active.svg" : "/assets/attach-default.svg"} 
+    alt="Attach" 
+    style={{ width: 35, height: 35 }}
+  />
+);
+
+const SubmitTradeIcon = ({ active }: { active?: boolean }) => (
+  <img 
+    src={active ? "/assets/submit-finished-trade-active.svg" : "/assets/submit-finished-trade-default.svg"} 
+    alt="Finish Trade" 
+    style={{ width: 35, height: 35 }}
+  />
+);
+
+interface ChatWindowProps {
+  chat: Chat;
+  messages: Message[];
+  onSendMessage: (content: string) => void;
+  onSendTradeOffer: (file: File, message: string) => void;
+  onAcceptTrade: (offerId: string) => void;
+  onRejectTrade: (offerId: string) => void;
+  onSubmitComplaint: (reason: string, details: string) => void;
+  onFinishTrade: (tradeId: string, rating: number, comment: string) => void;
+  loadingMessages: boolean;
+  currentUser: any;
+}
+
+const ChatWindow: React.FC<ChatWindowProps> = ({
+  chat,
+  messages,
+  onSendMessage,
+  onSendTradeOffer,
+  onAcceptTrade,
+  onRejectTrade,
+  onSubmitComplaint,
+  onFinishTrade,
+  loadingMessages,
+  currentUser,
+}) => {
+  const [message, setMessage] = useState('');
+  const [showTradeOfferModal, setShowTradeOfferModal] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [showFinishTradeModal, setShowFinishTradeModal] = useState(false);
+  const [activeIcon, setActiveIcon] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = () => {
+    if (message.trim()) {
+      onSendMessage(message);
+      setMessage('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleAttachTradeOffer = () => {
+    setShowTradeOfferModal(true);
+  };
+
+  const handleViewProfile = () => {
+    window.open(`/profile/${chat.otherUser.id}`, '_blank');
+  };
+
+  const handleReport = () => {
+    setShowComplaintModal(true);
+  };
+
+  const handleFinishTrade = () => {
+    setShowFinishTradeModal(true);
+  };
+
+  const handleAcceptTradeOffer = (offerId: string) => {
+    onAcceptTrade(offerId);
+  };
+
+  const handleRejectTradeOffer = (offerId: string) => {
+    onRejectTrade(offerId);
+  };
+
+  const isTradeReadyToFinish = chat.tradeAd?.status === 'ACCEPTED';
+
+const handleFinishTradeSubmit = (rating: number, comment: string) => {
+  if (chat.tradeAd?.id) {
+    onFinishTrade(chat.tradeAd.id, rating, comment);
+    setShowFinishTradeModal(false);
+  }
+};
+
+  return (
+    <Box
+      sx={{
+        flex: '1 1 0',
+        alignSelf: 'stretch',
+        paddingTop: 2,
+        paddingBottom: 2,
+        background: 'white',
+        borderRadius: 2,
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-start',
+        gap: 1,
+        display: 'inline-flex',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Верхняя панель с информацией об объявлении */}
+      <Box
+        sx={{
+          alignSelf: 'stretch',
+          justifyContent: 'flex-start',
+          alignItems: 'center',
+          gap: 1,
+          display: 'inline-flex',
+          px: 2,
+          py: 1,
+        }}
+      >
+        <Box
+          sx={{
+            paddingLeft: 0.5,
+            paddingRight: 0.5,
+            paddingTop: 0.75,
+            paddingBottom: 0.75,
+            boxShadow: '0px 0px 8px #F6C4D4',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            gap: 1,
+            display: 'flex',
+            borderRadius: 1,
+          }}
+        >
+          {/* Аватар объявления */}
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              padding: 1,
+              overflow: 'hidden',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 1,
+              display: 'flex',
+            }}
+          >
+           <img
+  style={{ width: 40, height: 40, borderRadius: '50%' }}
+  src={chat.tradeAd?.photo || 'https://placehold.co/40x40'}
+  alt={chat.tradeAd?.title || 'Trade Item'}
+/>
+
+<Typography
+  sx={{
+    alignSelf: 'stretch',
+    color: '#560D30',
+    fontSize: 15,
+    fontFamily: '"McLaren", cursive',
+    fontWeight: 400,
+    wordWrap: 'break-word',
+  }}
+>
+  {chat.tradeAd?.title || 'Trade Item'}
+</Typography>
+
+<Typography
+  sx={{
+    alignSelf: 'stretch',
+    color: '#852654',
+    fontSize: 11,
+    fontFamily: '"Nobile", sans-serif',
+    fontWeight: 400,
+    wordWrap: 'break-word',
+  }}
+>
+  Status: {chat.tradeAd?.status || 'Available'}
+</Typography>
+          </Box>
+        </Box>
+        
+        {/* Иконки действий */}
+        <Box
+          sx={{
+            flex: '1 1 0',
+            paddingLeft: 2,
+            paddingRight: 2,
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: 2.5,
+            display: 'flex',
+          }}
+        >
+          <Tooltip title="View Profile">
+            <IconButton
+              onClick={handleViewProfile}
+              onMouseEnter={() => setActiveIcon('profile')}
+              onMouseLeave={() => setActiveIcon(null)}
+              sx={{ p: 0 }}
+            >
+              <ProfileIcon active={activeIcon === 'profile'} />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Report User">
+            <IconButton
+              onClick={handleReport}
+              onMouseEnter={() => setActiveIcon('complaint')}
+              onMouseLeave={() => setActiveIcon(null)}
+              sx={{ p: 0 }}
+            >
+              <ComplaintIcon active={activeIcon === 'complaint'} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+      
+      {/* Разделительная линия */}
+      <Box
+        sx={{
+          alignSelf: 'stretch',
+          height: 0,
+          outline: '1px rgba(86.06, 12.58, 48.21, 0.50) solid',
+          outlineOffset: '-1px',
+        }}
+      />
+      
+      {/* Окно сообщений */}
+      <Box
+        sx={{
+          alignSelf: 'stretch',
+          flex: '1 1 0',
+          padding: 2,
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 1,
+          display: 'flex',
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(240, 94, 186, 0.1)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#F05EBA',
+            borderRadius: '3px',
+          },
+        }}
+      >
+        {loadingMessages ? (
+          // Skeleton для сообщений
+          <>
+            {[1, 2, 3].map(i => (
+              <Box
+                key={i}
+                sx={{
+                  display: 'flex',
+                  justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
+                  width: '100%',
+                  mb: 2,
+                }}
+              >
+                <Skeleton
+                  variant="rectangular"
+                  width={i === 3 ? '400px' : '300px'}
+                  height={i === 3 ? 280 : 80}
+                  sx={{ borderRadius: 2 }}
+                />
+              </Box>
+            ))}
+          </>
+        ) : (
+          // Сообщения
+          <>
+            {messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isOwn={msg.senderId === currentUser.id}
+                formatTime={(date) => new Date(date).toLocaleTimeString([], { 
+                  hour: 'numeric', 
+                  minute: '2-digit',
+                  hour12: true 
+                }).toUpperCase()}
+                onAcceptTrade={handleAcceptTradeOffer}
+                onRejectTrade={handleRejectTradeOffer}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </Box>
+      
+      {/* Поле ввода сообщения */}
+      <Box
+        sx={{
+          alignSelf: 'stretch',
+          boxShadow: '0px 0px 8px #F6C4D4',
+          justifyContent: 'center',
+          alignItems: 'flex-end',
+          gap: 1,
+          display: 'inline-flex',
+          px: 2,
+          py: 1,
+        }}
+      >
+        <Box
+          sx={{
+            flex: '1 1 0',
+            paddingLeft: 2,
+            paddingRight: 2,
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            display: 'flex',
+            gap: 2,
+          }}
+        >
+          {/* Поле ввода */}
+          <TextField
+            fullWidth
+            multiline
+            maxRows={3}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message here..."
+            variant="outlined"
+            size="small"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                borderColor: '#F6C4D4',
+                '&:hover fieldset': {
+                  borderColor: '#EC2EA6',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#EC2EA6',
+                  borderWidth: 2,
+                },
+                height: 56,
+              },
+              flex: 1,
+            }}
+          />
+          
+          {/* Иконки действий */}
+          <Box sx={{ height: 56, justifyContent: 'center', alignItems: 'center', gap: 1, display: 'flex' }}>
+            {/* Иконка отправки */}
+            <Tooltip title="Send Message">
+              <IconButton
+                onClick={handleSendMessage}
+                disabled={!message.trim()}
+                sx={{
+                  color: message.trim() ? 'white' : '#560D30',
+                  background: message.trim() 
+                    ? 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)'
+                    : 'rgba(240, 94, 186, 0.1)',
+                  '&:hover': {
+                    background: message.trim()
+                      ? 'linear-gradient(90deg, #F05EBA 0%, #EC2EA6 100%)'
+                      : 'rgba(240, 94, 186, 0.2)',
+                  },
+                }}
+              >
+                <SendIcon />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Иконка прикрепления файла */}
+            <Tooltip title="Attach Trade Offer">
+              <IconButton
+                onClick={handleAttachTradeOffer}
+                onMouseEnter={() => setActiveIcon('attach')}
+                onMouseLeave={() => setActiveIcon(null)}
+                sx={{ p: 0 }}
+              >
+                <AttachIcon active={activeIcon === 'attach'} />
+              </IconButton>
+            </Tooltip>
+            
+            {/* Иконка завершения сделки */}
+            {isTradeReadyToFinish && (
+              <Tooltip title="Finish Trade">
+                <IconButton
+                  onClick={handleFinishTrade}
+                  onMouseEnter={() => setActiveIcon('finish')}
+                  onMouseLeave={() => setActiveIcon(null)}
+                  sx={{ p: 0 }}
+                >
+                  <SubmitTradeIcon active={activeIcon === 'finish'} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Модальные окна */}
+      <TradeOfferModal
+        open={showTradeOfferModal}
+        onClose={() => setShowTradeOfferModal(false)}
+        onSendOffer={onSendTradeOffer}
+        tradeAd={chat.tradeAd}
+      />
+      
+      <ComplaintModal
+        open={showComplaintModal}
+        onClose={() => setShowComplaintModal(false)}
+        onSubmit={onSubmitComplaint}
+        reportedUser={chat.otherUser}
+      />
+      
+      <FinishTradeModal
+        open={showFinishTradeModal}
+        onClose={() => setShowFinishTradeModal(false)}
+        onFinishTrade={handleFinishTradeSubmit}
+        tradeAd={chat.tradeAd}
+        otherUser={chat.otherUser}
+      />
+    </Box>
+  );
+};
+
+export default ChatWindow;

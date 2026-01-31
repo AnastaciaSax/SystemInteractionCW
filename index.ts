@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { prisma } from './prisma/client';
 import authRoutes from './middleware/auth';
+import fileUpload from 'express-fileupload';
 
 dotenv.config();
 
@@ -74,9 +75,18 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use(fileUpload({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  abortOnLimit: true,
+  createParentPath: true
+}));
 
 // Подключаем auth маршруты
 app.use('/api/auth', authRoutes);
+
+// Импортируем и подключаем маршруты чата
+import chatRoutes from './routes/chat';
+app.use('/api/chat', chatRoutes);
 
 // Основные эндпоинты
 app.get('/api/health', (req, res) => {
@@ -173,7 +183,7 @@ app.get('/api/trade-ads', async (req, res) => {
       limit = 6,
       series,
       condition,
-      region, // ← Фильтр по региону пользователя
+      region,
       search,
       sort = 'newest'
     } = req.query;
@@ -195,7 +205,6 @@ app.get('/api/trade-ads', async (req, res) => {
     }
     
     if (region && region !== 'ALL') {
-      // Фильтруем по региону пользователя, а не по location объявления
       whereClause.user = {
         region: region as string
       };
@@ -206,16 +215,14 @@ app.get('/api/trade-ads', async (req, res) => {
         { title: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } },
         { figurine: { name: { contains: search as string, mode: 'insensitive' } } },
-        { location: { contains: search as string, mode: 'insensitive' } } // ← Ищем также в location
+        { location: { contains: search as string, mode: 'insensitive' } }
       ];
     }
     
-    // Настройка сортировки
     let orderBy: any = { createdAt: 'desc' };
     if (sort === 'oldest') {
       orderBy = { createdAt: 'asc' };
     } else if (sort === 'condition') {
-      // Сортировка по условию (нужна кастомная логика на клиенте или сервере)
       orderBy = { createdAt: 'desc' };
     } else if (sort === 'series') {
       orderBy = { figurine: { series: 'asc' } };
@@ -229,7 +236,7 @@ app.get('/api/trade-ads', async (req, res) => {
             select: {
               id: true,
               username: true,
-              region: true, // ← Включаем регион пользователя
+              region: true,
               profile: {
                 select: {
                   avatar: true,
@@ -254,7 +261,6 @@ app.get('/api/trade-ads', async (req, res) => {
     
     const pages = Math.ceil(total / Number(limit));
     
-    // Если сортировка по condition - обрабатываем на сервере
     let sortedAds = ads;
     if (sort === 'condition') {
       const conditionOrder = { MINT: 4, NIB: 3, GOOD: 2, TLC: 1 };
@@ -277,7 +283,6 @@ app.get('/api/trade-ads', async (req, res) => {
   }
 });
 
-
 // Получить мои объявления
 app.get('/api/trade-ads/my', async (req: any, res) => {
   try {
@@ -297,7 +302,7 @@ app.get('/api/trade-ads/my', async (req: any, res) => {
           select: {
             id: true,
             username: true,
-            region: true, // Добавляем регион пользователя
+            region: true,
             profile: {
               select: {
                 avatar: true,
@@ -337,7 +342,6 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
     
     const { title, description, condition, location, figurineId } = req.body;
     
-    // Валидация
     if (!title || !description || !condition || !location || !figurineId) {
       return res.status(400).json({ error: 'All fields are required' });
     }
@@ -346,7 +350,6 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
       return res.status(400).json({ error: 'Photo is required' });
     }
     
-    // Находим фигурку
     const figurine = await prisma.figurine.findUnique({
       where: { id: figurineId }
     });
@@ -355,7 +358,6 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
       return res.status(404).json({ error: 'Figurine not found' });
     }
     
-    // Получаем пользователя (регион берется из его профиля)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { region: true }
@@ -365,7 +367,6 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
       return res.status(404).json({ error: 'User not found' });
     }
     
-    // Проверяем, указан ли у пользователя регион
     if (!user.region) {
       return res.status(400).json({ 
         error: 'Please set your region in profile settings before creating trade ads' 
@@ -377,7 +378,7 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
         title,
         description,
         condition,
-        location, // ← Конкретное местоположение
+        location,
         photo: `/uploads/trade-ads/${req.file.filename}`,
         userId,
         figurineId,
@@ -388,7 +389,7 @@ app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res)
           select: {
             id: true,
             username: true,
-            region: true, // ← Регион пользователя
+            region: true,
             profile: {
               select: {
                 avatar: true,
@@ -427,7 +428,6 @@ app.put('/api/trade-ads/:id', uploadTradeAds.single('photo'), async (req: any, r
     
     const adId = req.params.id;
     
-    // Проверяем, что объявление принадлежит пользователю
     const existingAd = await prisma.tradeAd.findFirst({
       where: { id: adId, userId }
     });
@@ -446,10 +446,8 @@ app.put('/api/trade-ads/:id', uploadTradeAds.single('photo'), async (req: any, r
       figurineId
     };
     
-    // Если загружено новое фото
     if (req.file) {
       updateData.photo = `/uploads/trade-ads/${req.file.filename}`;
-      // Удаляем старое фото (опционально)
       if (existingAd.photo.startsWith('/uploads/')) {
         const oldPath = `.${existingAd.photo}`;
         if (fs.existsSync(oldPath)) {
@@ -466,7 +464,7 @@ app.put('/api/trade-ads/:id', uploadTradeAds.single('photo'), async (req: any, r
           select: {
             id: true,
             username: true,
-            region: true, // Добавляем регион пользователя
+            region: true,
             profile: {
               select: {
                 avatar: true,
@@ -505,7 +503,6 @@ app.delete('/api/trade-ads/:id', async (req: any, res) => {
     
     const adId = req.params.id;
     
-    // Проверяем, что объявление принадлежит пользователю
     const existingAd = await prisma.tradeAd.findFirst({
       where: { id: adId, userId }
     });
@@ -514,7 +511,6 @@ app.delete('/api/trade-ads/:id', async (req: any, res) => {
       return res.status(404).json({ error: 'Ad not found or you are not the owner' });
     }
     
-    // Удаляем фото (опционально)
     if (existingAd.photo.startsWith('/uploads/')) {
       const filePath = `.${existingAd.photo}`;
       if (fs.existsSync(filePath)) {
@@ -533,8 +529,7 @@ app.delete('/api/trade-ads/:id', async (req: any, res) => {
   }
 });
 
-// Эндпоинты для wishlist
-// Эндпоинт для получения вишлиста пользователя с полными данными фигурок
+// Wishlist эндпоинты
 app.get('/api/wishlist/me', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -587,7 +582,6 @@ app.post('/api/wishlist', async (req: any, res) => {
     
     const { figurineId, note, priority } = req.body;
     
-    // Проверяем, не добавлена ли уже фигурка
     const existingItem = await prisma.wishlistItem.findFirst({
       where: { userId, figurineId }
     });
@@ -636,7 +630,6 @@ app.put('/api/wishlist/:id', async (req: any, res) => {
     const itemId = req.params.id;
     const { note, priority } = req.body;
     
-    // Проверяем, что элемент принадлежит пользователю
     const existingItem = await prisma.wishlistItem.findFirst({
       where: { id: itemId, userId }
     });
@@ -683,7 +676,6 @@ app.delete('/api/wishlist/:id', async (req: any, res) => {
     
     const itemId = req.params.id;
     
-    // Проверяем, что элемент принадлежит пользователю
     const existingItem = await prisma.wishlistItem.findFirst({
       where: { id: itemId, userId }
     });
@@ -732,8 +724,9 @@ app.get('/api/wishlist/status/:figurineId', async (req: any, res) => {
 
 // Добавим статическую папку для загрузок
 app.use('/uploads', express.static('uploads'));
+app.use('/uploads/trade-offers', express.static('uploads/trade-offers'));
 
-// Получить профиль пользователя по ID
+// Профиль пользователя
 app.get('/api/users/:id/profile', async (req, res) => {
   try {
     const { id } = req.params;
@@ -767,7 +760,6 @@ app.get('/api/users/:id/profile', async (req, res) => {
   }
 });
 
-// Обновить профиль пользователя
 app.put('/api/profile', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -788,21 +780,17 @@ app.put('/api/profile', async (req: any, res) => {
       achievements 
     } = req.body;
     
-    // Получаем текущий профиль
     const currentProfile = await prisma.profile.findUnique({
       where: { userId }
     });
     
-    // Проверяем, есть ли уже ачивка "Profile Customizer"
     let updatedAchievements = currentProfile?.achievements || [];
     const hasProfileCustomizer = updatedAchievements.includes('Profile Customizer');
     
-    // Добавляем ачивку, если это первое обновление профиля
     if (!hasProfileCustomizer) {
       updatedAchievements.push('Profile Customizer');
     }
     
-    // Если переданы дополнительные ачивки, добавляем их
     if (achievements && Array.isArray(achievements)) {
       achievements.forEach((achievement: string) => {
         if (!updatedAchievements.includes(achievement)) {
@@ -811,7 +799,6 @@ app.put('/api/profile', async (req: any, res) => {
       });
     }
     
-    // Обновляем пользователя (если есть изменения)
     if (username || region) {
       await prisma.user.update({
         where: { id: userId },
@@ -822,7 +809,6 @@ app.put('/api/profile', async (req: any, res) => {
       });
     }
     
-    // Обновляем профиль
     const updatedProfile = await prisma.profile.update({
       where: { userId },
       data: {
@@ -833,17 +819,14 @@ app.put('/api/profile', async (req: any, res) => {
       }
     });
     
-    // Получаем обновленного пользователя
     const updatedUser = await prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true }
     });
     
-    // Проверяем, заслужил ли пользователь знак доверия
     let hasTrustBadge = false;
     if (updatedUser?.profile?.tradeCount && updatedUser.profile.tradeCount >= 5 && 
         updatedUser.profile.rating && updatedUser.profile.rating >= 4.0) {
-      // Добавляем ачивку Trusted Collector, если еще нет
       if (!updatedAchievements.includes('Trusted Collector')) {
         updatedAchievements.push('Trusted Collector');
         await prisma.profile.update({
@@ -867,7 +850,6 @@ app.put('/api/profile', async (req: any, res) => {
   }
 });
 
-// Загрузить аватар
 app.post('/api/profile/avatar', uploadAvatars.single('avatar'), async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -885,13 +867,11 @@ app.post('/api/profile/avatar', uploadAvatars.single('avatar'), async (req: any,
     
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     
-    // Обновляем профиль с новым аватаром
     await prisma.profile.update({
       where: { userId },
       data: { avatar: avatarUrl }
     });
     
-    // Получаем обновленного пользователя с профилем
     const updatedUser = await prisma.user.findUnique({
       where: { id: userId },
       include: { 
@@ -910,7 +890,6 @@ app.post('/api/profile/avatar', uploadAvatars.single('avatar'), async (req: any,
   }
 });
 
-// Получить wishlist пользователя
 app.get('/api/users/:id/wishlist', async (req, res) => {
   try {
     const { id } = req.params;
@@ -921,7 +900,7 @@ app.get('/api/users/:id/wishlist', async (req, res) => {
         figurine: true
       },
       orderBy: { addedAt: 'desc' },
-      take: 6 // Ограничиваем для предпросмотра
+      take: 6
     });
     
     res.json(wishlistItems);
@@ -931,7 +910,6 @@ app.get('/api/users/:id/wishlist', async (req, res) => {
   }
 });
 
-// Получить trade ads пользователя
 app.get('/api/users/:id/trade-ads', async (req, res) => {
   try {
     const { id } = req.params;
@@ -963,7 +941,7 @@ app.get('/api/users/:id/trade-ads', async (req, res) => {
         }
       },
       orderBy: { createdAt: 'desc' },
-      take: 6 // Ограничиваем для предпросмотра
+      take: 6
     });
     
     res.json(ads);
@@ -973,7 +951,8 @@ app.get('/api/users/:id/trade-ads', async (req, res) => {
   }
 });
 
-// Получить чаты пользователя
+// Устаревшие эндпоинты чата - теперь используем отдельный роутер
+// Оставляем для обратной совместимости
 app.get('/api/chats', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -985,7 +964,6 @@ app.get('/api/chats', async (req: any, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     const userId = decoded.userId;
     
-    // Находим все чаты, где пользователь участник
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -1009,7 +987,6 @@ app.get('/api/chats', async (req: any, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    // Группируем сообщения по собеседнику
     const chatMap = new Map();
     
     messages.forEach(msg => {
@@ -1027,14 +1004,13 @@ app.get('/api/chats', async (req: any, res) => {
           },
           lastMessage: msg,
           tradeAd: msg.trade,
-          unreadCount: 0 // Рассчитываем непрочитанные
+          unreadCount: 0
         });
       }
     });
     
     const chats = Array.from(chatMap.values());
     
-    // Сортируем по времени последнего сообщения
     chats.sort((a, b) => 
       new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
     );
@@ -1046,7 +1022,6 @@ app.get('/api/chats', async (req: any, res) => {
   }
 });
 
-// Получить сообщения чата
 app.get('/api/chats/:chatId/messages', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1057,7 +1032,7 @@ app.get('/api/chats/:chatId/messages', async (req: any, res) => {
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     const userId = decoded.userId;
-    const chatId = req.params.chatId; // ID другого пользователя
+    const chatId = req.params.chatId;
     
     const messages = await prisma.message.findMany({
       where: {
@@ -1075,7 +1050,7 @@ app.get('/api/chats/:chatId/messages', async (req: any, res) => {
         trade: true
       },
       orderBy: { createdAt: 'asc' },
-      take: 100 // Лимит сообщений
+      take: 100
     });
     
     res.json(messages);
@@ -1085,7 +1060,6 @@ app.get('/api/chats/:chatId/messages', async (req: any, res) => {
   }
 });
 
-// Отправить сообщение
 app.post('/api/messages', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1099,7 +1073,6 @@ app.post('/api/messages', async (req: any, res) => {
     
     const { receiverId, content, tradeId } = req.body;
     
-    // Создаем сообщение
     const message = await prisma.message.create({
       data: {
         senderId: userId,
@@ -1124,7 +1097,6 @@ app.post('/api/messages', async (req: any, res) => {
   }
 });
 
-// Отправить trade offer
 app.post('/api/trade-offers', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1138,7 +1110,6 @@ app.post('/api/trade-offers', async (req: any, res) => {
     
     const { tradeAdId, message } = req.body;
     
-    // Создаем trade offer
     const tradeOffer = await prisma.tradeOffer.create({
       data: {
         tradeAdId,
@@ -1155,7 +1126,6 @@ app.post('/api/trade-offers', async (req: any, res) => {
   }
 });
 
-// Принять trade
 app.post('/api/trades/:id/accept', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1169,7 +1139,6 @@ app.post('/api/trades/:id/accept', async (req: any, res) => {
     
     const tradeId = req.params.id;
     
-    // Обновляем статус trade offer
     const tradeOffer = await prisma.tradeOffer.updateMany({
       where: {
         tradeAdId: tradeId,
@@ -1180,7 +1149,6 @@ app.post('/api/trades/:id/accept', async (req: any, res) => {
       }
     });
     
-    // Обновляем статус объявления
     const tradeAd = await prisma.tradeAd.update({
       where: { id: tradeId },
       data: { status: 'COMPLETED' }
@@ -1193,7 +1161,6 @@ app.post('/api/trades/:id/accept', async (req: any, res) => {
   }
 });
 
-// Отправить жалобу
 app.post('/api/complaints', async (req: any, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1207,8 +1174,6 @@ app.post('/api/complaints', async (req: any, res) => {
     
     const { reportedUserId, reason, details, chatId } = req.body;
     
-    // Здесь можно сохранить жалобу в отдельную таблицу
-    // Пока просто логируем
     console.log('Complaint submitted:', {
       reporterId: userId,
       reportedUserId,

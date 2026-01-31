@@ -14,9 +14,9 @@ import Modal from '../../../components/ui/Modal';
 interface FinishTradeModalProps {
   open: boolean;
   onClose: () => void;
-  onFinishTrade: () => void;
-  tradeAd: any;
-  otherUser: any;
+  onFinishTrade: (rating: number, comment: string) => void;
+  tradeAd?: any; // Сделать опциональным
+  otherUser?: any; 
 }
 
 const FinishTradeModal: React.FC<FinishTradeModalProps> = ({
@@ -32,12 +32,11 @@ const FinishTradeModal: React.FC<FinishTradeModalProps> = ({
 
   const handleSubmit = () => {
     if (comment.trim()) {
-      // Здесь можно добавить отправку рейтинга
-      onFinishTrade();
+      onFinishTrade(rating, comment);
       setSubmitted(true);
       setTimeout(() => {
         handleClose();
-      }, 3000);
+      }, 2000);
     }
   };
 

@@ -1,142 +1,198 @@
 import React from 'react';
-import { Box, Typography, Avatar } from '@mui/material';
+import { Box, Typography, IconButton } from '@mui/material';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { Message } from '../../../services/api';
 
 interface MessageBubbleProps {
-  message: Message;
+  message: Message & { imageUrl?: string }; // Добавляем imageUrl
   isOwn: boolean;
   formatTime: (dateString: string) => string;
+  onAcceptTrade?: (offerId: string) => void;
+  onRejectTrade?: (offerId: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, formatTime }) => {
-  const hasImage = message.content.includes('[IMAGE]') || message.imageUrl;
-  const isTradeOffer = message.tradeId && hasImage;
+const MessageBubble: React.FC<MessageBubbleProps> = ({ 
+  message, 
+  isOwn, 
+  formatTime,
+  onAcceptTrade,
+  onRejectTrade
+}) => {
+  // Определяем, является ли сообщение trade offer по наличию imageUrl
+  const isTradeOffer = message.imageUrl != null;
 
   return (
     <Box
       sx={{
+        alignSelf: isOwn ? 'stretch' : 'stretch',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        alignItems: isOwn ? 'flex-end' : 'flex-start',
+        gap: 0.5,
         display: 'flex',
-        justifyContent: isOwn ? 'flex-end' : 'flex-start',
         mb: 2,
       }}
     >
-      {!isOwn && message.sender && (
-        <Avatar
-          src={message.sender.profile?.avatar || '/assets/default-avatar.png'}
-          alt={message.sender.username}
-          sx={{ width: 32, height: 32, mr: 1, mt: 0.5 }}
-        />
-      )}
-      
-      <Box
-        sx={{
-          maxWidth: '70%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isOwn ? 'flex-end' : 'flex-start',
-        }}
-      >
-        {!isOwn && message.sender && (
-          <Typography
-            sx={{
-              color: '#560D30',
-              fontSize: '12px',
-              fontFamily: '"McLaren", cursive',
-              mb: 0.5,
-            }}
-          >
-            {message.sender.username}
-          </Typography>
-        )}
-        
+      {isTradeOffer ? (
+        // Сообщение с trade offer
         <Box
           sx={{
-            background: isOwn
-              ? 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)'
-              : 'white',
+            maxWidth: 400,
+            padding: 2,
+            background: isOwn ? 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)' : 'white',
             borderRadius: 2,
-            p: 2,
-            boxShadow: isOwn 
-              ? '0px 2px 8px rgba(233, 196, 217, 0.3)'
-              : '0px 4px 10px rgba(35, 40, 73, 0.25)',
-            border: isOwn ? 'none' : '1px solid rgba(150, 242, 247, 0.5)',
-            position: 'relative',
-            minWidth: isTradeOffer ? '300px' : 'auto',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 1,
+            display: 'flex',
+            boxShadow: isOwn ? 'none' : '0px 4px 10px rgba(35.40, 73.71, 135.35, 0.25)',
+            outline: isOwn ? 'none' : '1px #96F2F7 solid',
+            outlineOffset: '-1px',
           }}
         >
-          {isTradeOffer ? (
-            <Box>
-              <img
-                src={message.imageUrl || '/assets/default-trade.png'}
-                alt="Trade Offer"
-                style={{
-                  width: '100%',
-                  maxWidth: '230px',
-                  height: 'auto',
-                  borderRadius: '10px',
-                  marginBottom: '8px',
-                }}
-              />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography
-                  sx={{
-                    color: '#852654',
-                    fontSize: '13px',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontWeight: 400,
-                  }}
-                >
-                  Trade Offer
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                  <CheckIcon sx={{ color: '#EC2EA6', fontSize: 16, cursor: 'pointer' }} />
-                  <CloseIcon sx={{ color: '#EC2EA6', fontSize: 16, cursor: 'pointer' }} />
-                </Box>
-              </Box>
-              {message.content && !message.content.includes('[IMAGE]') && (
-                <Typography
-                  sx={{
-                    color: '#560D30',
-                    fontSize: '13px',
-                    fontFamily: '"Nobile", sans-serif',
-                    mt: 1,
-                  }}
-                >
-                  {message.content}
-                </Typography>
-              )}
-            </Box>
-          ) : (
+          <img
+            style={{ width: 230, height: 230, borderRadius: 10 }}
+            src={message.imageUrl || 'https://placehold.co/230x230'}
+            alt="Trade Offer"
+          />
+          <Box sx={{ alignSelf: 'stretch', textAlign: 'center' }}>
             <Typography
+              component="span"
               sx={{
-                color: isOwn ? '#560D30' : '#11073A',
-                fontSize: '13px',
+                color: '#852654',
+                fontSize: 13,
                 fontFamily: '"Nobile", sans-serif',
                 fontWeight: 400,
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+              }}
+            >
+              Trade Offer
+            </Typography>
+            <Typography
+              component="span"
+              sx={{
+                color: '#EC2EA6',
+                fontSize: 13,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+              }}
+            >
+              {' ✔️'}
+            </Typography>
+            <Typography
+              component="span"
+              sx={{
+                color: '#852654',
+                fontSize: 13,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+              }}
+            >
+              {' / '}
+            </Typography>
+            <Typography
+              component="span"
+              sx={{
+                color: '#EC2EA6',
+                fontSize: 13,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+              }}
+            >
+              {'❌'}
+            </Typography>
+            
+            {!isOwn && onAcceptTrade && onRejectTrade && (
+              <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: 'center' }}>
+                <IconButton
+                  onClick={() => onAcceptTrade(message.id)}
+                  sx={{
+                    background: '#4CAF50',
+                    color: 'white',
+                    '&:hover': { background: '#45a049' },
+                  }}
+                >
+                  <CheckIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => onRejectTrade(message.id)}
+                  sx={{
+                    background: '#FF4C4C',
+                    color: 'white',
+                    '&:hover': { background: '#ff3333' },
+                  }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
+          
+          {message.content && (
+            <Typography
+              sx={{
+                alignSelf: 'stretch',
+                color: '#560D30',
+                fontSize: 13,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+                mt: 1,
               }}
             >
               {message.content}
             </Typography>
           )}
         </Box>
-        
-        <Typography
+      ) : (
+        // Обычное сообщение
+        <Box
           sx={{
-            color: '#852654',
-            fontSize: '11px',
-            fontFamily: '"Nobile", sans-serif',
-            fontWeight: 400,
-            mt: 0.5,
+            maxWidth: 400,
+            padding: 2,
+            background: isOwn ? 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)' : 'white',
+            borderRadius: 2,
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 1,
+            display: 'flex',
           }}
         >
-          {formatTime(message.createdAt)}
-          {message.isRead && isOwn && ' • Read'}
-        </Typography>
-      </Box>
+          <Typography
+            sx={{
+              width: 380,
+              color: isOwn ? '#560D30' : '#11073A',
+              fontSize: 13,
+              fontFamily: '"Nobile", sans-serif',
+              fontWeight: 400,
+              wordWrap: 'break-word',
+            }}
+          >
+            {message.content}
+          </Typography>
+        </Box>
+      )}
+      
+      <Typography
+        sx={{
+          alignSelf: isOwn ? 'stretch' : 'stretch',
+          textAlign: isOwn ? 'right' : 'left',
+          color: '#852654',
+          fontSize: 11,
+          fontFamily: '"Nobile", sans-serif',
+          fontWeight: 400,
+          wordWrap: 'break-word',
+        }}
+      >
+        {formatTime(message.createdAt)}
+        {message.isRead && isOwn && ' • Read'}
+      </Typography>
     </Box>
   );
 };

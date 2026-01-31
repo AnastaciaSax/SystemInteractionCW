@@ -1,9 +1,9 @@
+// client/src/pages/ChitChat/ChitChat.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Container, 
-  Grid, 
-  Typography, 
+  Typography,
   Skeleton,
   useMediaQuery,
   useTheme
@@ -11,14 +11,12 @@ import {
 import Header from '../../components/Layout/Header';
 import Footer from '../../components/Layout/Footer';
 import PageBanner from '../../components/PageBanner';
-import ToggleButtons from './components/ToggleButtons';
-import ChatSidebar from './components/ChatSidebar';
-import ChatContent from './components/ChatContent';
+import VerticalToggleButtons from './components/VerticalToggleButtons';
+import ChatList from './components/ChatList';
+import ChatWindow from './components/ChatWindow';
 import Notification from '../../components/ui/Notification';
 import { chatAPI, Chat, Message as APIMessage } from '../../services/api';
 import './ChitChat.css';
-
-// Удаляем локальные интерфейсы и используем импортированные
 
 const ChitChat: React.FC = () => {
   const [mode, setMode] = useState<'chat' | 'forum'>('chat');
@@ -57,7 +55,6 @@ const ChitChat: React.FC = () => {
       const response = await chatAPI.getChats();
       setChats(response.data);
       
-      // Выбираем первый чат, если есть
       if (response.data.length > 0 && !selectedChat) {
         setSelectedChat(response.data[0]);
       }
@@ -82,42 +79,24 @@ const ChitChat: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async (content: string, file?: File) => {
+  const handleSendMessage = async (content: string) => {
     if (!selectedChat) return;
     
     try {
-      const formData = new FormData();
-      formData.append('content', content);
-      formData.append('receiverId', selectedChat.otherUser.id);
+      const response = await chatAPI.sendMessage({
+        receiverId: selectedChat.otherUser.id,
+        content,
+        tradeId: selectedChat.tradeAd?.id
+      });
       
-      if (selectedChat.tradeAd?.id) {
-        formData.append('tradeId', selectedChat.tradeAd.id);
-      }
-      
-      if (file) {
-        formData.append('image', file);
-      }
-      
-      const response = await chatAPI.sendMessage(formData);
-      
-      // Обновляем сообщения
       setMessages(prev => [...prev, response.data]);
       
-      // Обновляем последнее сообщение в чате
       setChats(prev => prev.map(chat => 
         chat.id === selectedChat.id 
           ? { 
               ...chat, 
-              lastMessage: {
-                id: response.data.id,
-                content: response.data.content,
-                createdAt: response.data.createdAt,
-                senderId: response.data.senderId,
-                receiverId: response.data.receiverId,
-                isRead: response.data.isRead,
-                tradeId: response.data.tradeId,
-                sender: response.data.sender
-              }
+              lastMessage: response.data,
+              unreadCount: 0,
             }
           : chat
       ));
@@ -129,50 +108,60 @@ const ChitChat: React.FC = () => {
     }
   };
 
-  const handleSendTradeOffer = async (file: File, message: string) => {
-    if (!selectedChat || !selectedChat.tradeAd) return;
+  const handleSendTradeOffer = async (file: File, textMessage: string) => {
+    if (!selectedChat || !selectedChat.tradeAd) {
+      showNotification('No trade ad selected for offer', 'error');
+      return;
+    }
     
     try {
       const formData = new FormData();
       formData.append('tradeAdId', selectedChat.tradeAd.id);
-      formData.append('message', message);
+      formData.append('textMessage', textMessage);
       formData.append('image', file);
       
-      await chatAPI.sendTradeOffer(formData);
+      // Используем axios напрямую для отправки формы
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/chat/trade-offer', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
       
-      // Добавляем сообщение с trade offer
-      const tradeOfferMessage: APIMessage = {
-        id: Date.now().toString(),
-        senderId: currentUser.id,
-        receiverId: selectedChat.otherUser.id,
-        content: `Trade offer: ${message}`,
-        tradeId: selectedChat.tradeAd.id,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        sender: {
-          id: currentUser.id,
-          username: currentUser.username,
-          profile: currentUser.profile
-        }
-      };
+      const result = await response.json();
       
-      setMessages(prev => [...prev, tradeOfferMessage]);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      
+      setMessages(prev => [...prev, result.message]);
       showNotification('Trade offer sent successfully', 'success');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending trade offer:', error);
-      showNotification('Failed to send trade offer', 'error');
+      showNotification(error.message || 'Failed to send trade offer', 'error');
     }
   };
 
-  const handleAcceptTrade = async () => {
-    if (!selectedChat || !selectedChat.tradeAd) return;
-    
+  const handleAcceptTrade = async (offerId: string) => {
     try {
-      await chatAPI.acceptTrade(selectedChat.tradeAd.id);
-      showNotification('Trade accepted! Please leave feedback.', 'success');
+      await chatAPI.acceptTradeOffer(offerId, true);
+      showNotification('Trade accepted!', 'success');
+      fetchChats();
     } catch (error) {
       console.error('Error accepting trade:', error);
       showNotification('Failed to accept trade', 'error');
+    }
+  };
+
+  const handleRejectTrade = async (offerId: string) => {
+    try {
+      await chatAPI.acceptTradeOffer(offerId, false);
+      showNotification('Trade offer rejected', 'info');
+    } catch (error) {
+      console.error('Error rejecting trade:', error);
+      showNotification('Failed to reject trade', 'error');
     }
   };
 
@@ -186,10 +175,22 @@ const ChitChat: React.FC = () => {
         details,
         chatId: selectedChat.id
       });
+      
       showNotification('Complaint submitted successfully', 'success');
     } catch (error) {
       console.error('Error submitting complaint:', error);
       showNotification('Failed to submit complaint', 'error');
+    }
+  };
+
+  const handleFinishTrade = async (tradeId: string, rating: number, comment: string) => {
+    try {
+      await chatAPI.finishTrade(tradeId, { rating, comment });
+      showNotification('Trade completed successfully!', 'success');
+      fetchChats();
+    } catch (error) {
+      console.error('Error finishing trade:', error);
+      showNotification('Failed to finish trade', 'error');
     }
   };
 
@@ -201,18 +202,16 @@ const ChitChat: React.FC = () => {
     });
   };
 
-  // Оборачиваем setSelectedChat для ChatSidebar
   const handleSelectChat = (chat: Chat) => {
     setSelectedChat(chat);
   };
 
-  // Skeleton для загрузки
   if (loading) {
     return (
       <Box
         sx={{
           minHeight: '100vh',
-          background: 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)',
+          background: 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D4 100%)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -229,19 +228,60 @@ const ChitChat: React.FC = () => {
         />
         
         <Container sx={{ maxWidth: '1280px !important', py: 4 }}>
-          <ToggleButtons mode={mode} onModeChange={() => {}} />
-          
-          <Grid container spacing={2} sx={{ mt: 2 }}>
-            {/* Sidebar Skeleton */}
-            <Grid item xs={12} md={3}>
-              <Skeleton variant="rectangular" width="100%" height={400} />
-            </Grid>
+          <Box sx={{ 
+            width: '100%', 
+            height: '720px',
+            overflow: 'hidden',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            gap: 2,
+            display: 'inline-flex'
+          }}>
+            <Box sx={{ 
+              flexDirection: 'column', 
+              justifyContent: 'center', 
+              alignItems: 'flex-start', 
+              gap: 2, 
+              display: 'inline-flex' 
+            }}>
+              <Skeleton variant="rectangular" width={197} height={40} sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width={197} height={40} sx={{ borderRadius: 1 }} />
+            </Box>
             
-            {/* Content Skeleton */}
-            <Grid item xs={12} md={9}>
-              <Skeleton variant="rectangular" width="100%" height={400} />
-            </Grid>
-          </Grid>
+            <Box sx={{ 
+              alignSelf: 'stretch', 
+              padding: 2, 
+              background: 'white', 
+              borderRadius: 2, 
+              flexDirection: 'column', 
+              justifyContent: 'flex-start', 
+              alignItems: 'flex-start', 
+              gap: 2, 
+              display: 'inline-flex' 
+            }}>
+              <Skeleton variant="text" width={128} height={40} />
+              {[1, 2, 3, 4, 5].map(i => (
+                <Skeleton key={i} variant="rectangular" width={224} height={73} sx={{ borderRadius: 2 }} />
+              ))}
+            </Box>
+            
+            <Box sx={{ 
+              flex: '1 1 0', 
+              alignSelf: 'stretch', 
+              padding: 2, 
+              background: 'white', 
+              borderRadius: 2, 
+              flexDirection: 'column', 
+              justifyContent: 'flex-start', 
+              alignItems: 'flex-start', 
+              gap: 2, 
+              display: 'inline-flex' 
+            }}>
+              <Skeleton variant="rectangular" width="100%" height={80} sx={{ borderRadius: 2 }} />
+              <Skeleton variant="rectangular" width="100%" height={400} sx={{ borderRadius: 2 }} />
+              <Skeleton variant="rectangular" width="100%" height={60} sx={{ borderRadius: 2 }} />
+            </Box>
+          </Box>
         </Container>
         
         <Footer />
@@ -260,7 +300,6 @@ const ChitChat: React.FC = () => {
     >
       <Header />
       
-      {/* Уведомление */}
       <Notification
         open={notification.open}
         message={notification.message}
@@ -284,61 +323,68 @@ const ChitChat: React.FC = () => {
           flex: 1,
         }}
       >
-        {/* Переключение между Chat и Forum */}
-        <ToggleButtons mode={mode} onModeChange={setMode} />
-        
         {mode === 'chat' ? (
-          <Grid container spacing={isMobile ? 1 : 3} sx={{ mt: 2 }}>
-            {/* Боковая панель с чатами */}
-            <Grid item xs={12} md={3}>
-              <ChatSidebar
-                chats={chats}
-                selectedChat={selectedChat}
-                onSelectChat={handleSelectChat}
-                loading={loading}
-              />
-            </Grid>
+          <Box sx={{ 
+            width: '100%', 
+            height: '720px',
+            overflow: 'hidden',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            gap: 2,
+            display: 'inline-flex'
+          }}>
+            <VerticalToggleButtons mode={mode} onModeChange={setMode} />
             
-            {/* Основное окно чата */}
-            <Grid item xs={12} md={9}>
-              {selectedChat ? (
-                <ChatContent
-                  chat={selectedChat}
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                  onSendTradeOffer={handleSendTradeOffer}
-                  onAcceptTrade={handleAcceptTrade}
-                  onSubmitComplaint={handleSubmitComplaint}
-                  loadingMessages={loadingMessages}
-                  currentUser={currentUser}
-                />
-              ) : (
-                <Box
+            <ChatList
+              chats={chats}
+              selectedChat={selectedChat}
+              onSelectChat={handleSelectChat}
+              loading={loading}
+            />
+            
+            {selectedChat ? (
+              <ChatWindow
+                chat={selectedChat}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onSendTradeOffer={handleSendTradeOffer}
+                onAcceptTrade={handleAcceptTrade}
+                onRejectTrade={handleRejectTrade}
+                onSubmitComplaint={handleSubmitComplaint}
+                onFinishTrade={handleFinishTrade}
+                loadingMessages={loadingMessages}
+                currentUser={currentUser}
+              />
+            ) : (
+              <Box
+                sx={{
+                  flex: '1 1 0',
+                  alignSelf: 'stretch',
+                  padding: 3,
+                  background: 'white',
+                  borderRadius: 2,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                <Typography
                   sx={{
-                    height: '100%',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    background: 'white',
-                    borderRadius: 3,
-                    p: 4,
-                    textAlign: 'center',
+                    color: '#852654',
+                    fontSize: '18px',
+                    fontFamily: '"Nobile", sans-serif',
+                    fontStyle: 'italic',
                   }}
                 >
-                  <Typography
-                    sx={{
-                      color: '#852654',
-                      fontSize: '18px',
-                      fontFamily: '"Nobile", sans-serif',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    Select a chat to start messaging! 💬
-                  </Typography>
-                </Box>
-              )}
-            </Grid>
-          </Grid>
+                  {chats.length === 0 
+                    ? 'No messages yet. Start trading to chat with collectors! 🤝' 
+                    : 'Select a chat to start messaging! 💬'
+                  }
+                </Typography>
+              </Box>
+            )}
+          </Box>
         ) : (
           <Box
             sx={{
