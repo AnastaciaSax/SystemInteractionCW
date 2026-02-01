@@ -134,6 +134,70 @@ const handleFinishTradeSubmit = (rating: number, comment: string) => {
   }
 };
 
+const handleSendTradeOffer = async (file: File) => {
+  if (!selectedChat || !selectedChat.tradeAd) {
+    showNotification('No trade ad selected for offer', 'error');
+    return;
+  }
+  
+  // Проверяем, не является ли пользователь владельцем объявления
+  if (selectedChat.tradeAd.userId === currentUser.id) {
+    showNotification('You cannot send trade offer to your own ad', 'error');
+    return;
+  }
+  
+  try {
+    const formData = new FormData();
+    formData.append('tradeAdId', selectedChat.tradeAd.id);
+    formData.append('image', file);
+    
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/chat/trade-offer', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    
+    // Добавляем сообщение в чат
+    setMessages(prev => [...prev, result.message]);
+    
+    // Обновляем список чатов
+    fetchChats();
+    
+    showNotification('Trade offer sent successfully', 'success');
+  } catch (error: any) {
+    console.error('Error sending trade offer:', error);
+    showNotification(error.message || 'Failed to send trade offer', 'error');
+  }
+};
+const handleSubmitComplaint = async (reason: string, details: string) => {
+  if (!selectedChat) return;
+  
+  try {
+    await chatAPI.submitComplaint({
+      reportedUserId: selectedChat.otherUser.id,
+      reason,
+      details,
+      chatId: selectedChat.id,
+      tradeId: selectedChat.tradeAd?.id // Добавляем tradeId для отмены объявления
+    });
+    
+    showNotification('Complaint submitted successfully. Trade has been cancelled.', 'success');
+    fetchChats(); // Обновляем чаты для обновления статусов
+  } catch (error) {
+    console.error('Error submitting complaint:', error);
+    showNotification('Failed to submit complaint', 'error');
+  }
+};
+
   return (
     <Box
       sx={{

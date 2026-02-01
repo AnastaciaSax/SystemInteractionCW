@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Button,
-  TextField,
   IconButton,
   CircularProgress,
 } from '@mui/material';
@@ -14,7 +13,7 @@ import Modal from '../../../components/ui/Modal';
 interface TradeOfferModalProps {
   open: boolean;
   onClose: () => void;
-  onSendOffer: (file: File, message: string) => void;
+  onSendOffer: (file: File) => void;
   tradeAd?: any;
 }
 
@@ -26,7 +25,6 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>('');
-  const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,11 +41,11 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
   };
 
   const handleSend = async () => {
-    if (!file || !message.trim()) return;
+    if (!file) return;
     
     setUploading(true);
     try {
-      await onSendOffer(file, message);
+      await onSendOffer(file);
       handleClose();
     } catch (error) {
       console.error('Error sending trade offer:', error);
@@ -59,7 +57,6 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
   const handleClose = () => {
     setFile(null);
     setPreview('');
-    setMessage('');
     setUploading(false);
     onClose();
   };
@@ -166,28 +163,21 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
           />
         </Box>
 
-        {/* Message input */}
-        <TextField
-          multiline
-          rows={4}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Add a message about your trade offer..."
-          variant="outlined"
-          fullWidth
+        {/* Info */}
+        <Typography
           sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              borderColor: '#F6C4D4',
-              '&:hover fieldset': {
-                borderColor: '#EC2EA6',
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: '#EC2EA6',
-              },
-            },
+            color: '#560D30',
+            fontSize: '13px',
+            fontFamily: '"Nobile", sans-serif',
+            fontStyle: 'italic',
+            textAlign: 'center',
+            p: 2,
+            bgcolor: 'rgba(240, 94, 186, 0.1)',
+            borderRadius: 1,
           }}
-        />
+        >
+          The photo will be sent as a trade offer. The recipient can accept or reject it.
+        </Typography>
 
         {/* Buttons */}
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
@@ -207,7 +197,7 @@ const TradeOfferModal: React.FC<TradeOfferModalProps> = ({
           </Button>
           <Button
             onClick={handleSend}
-            disabled={!file || !message.trim() || uploading}
+            disabled={!file || uploading}
             sx={{
               background: 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)',
               color: 'white',

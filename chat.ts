@@ -22,6 +22,7 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const userId = req.user.userId;
 
+    // Получаем все сообщения сгруппированные по tradeId и другим пользователям
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -40,23 +41,38 @@ router.get('/', authenticate, async (req, res) => {
             profile: true
           }
         },
-        trade: true
+        trade: {
+          include: {
+            user: {
+              include: {
+                profile: true
+              }
+            },
+            figurine: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    const chatsMap = new Map();
+    // Группируем сообщения по уникальным чатам
+    const chatMap = new Map<string, any>();
     
     messages.forEach(message => {
+      // Определяем другого пользователя в чате
       const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
       const otherUser = message.senderId === userId ? message.receiver : message.sender;
       
-      const chatKey = `${otherUserId}-${message.tradeId || 'no-trade'}`;
+      // Создаем уникальный ключ чата: комбинация пользователей + tradeId
+      const chatKey = message.tradeId 
+        ? `${Math.min(userId, otherUserId)}-${Math.max(userId, otherUserId)}-${message.tradeId}`
+        : `${Math.min(userId, otherUserId)}-${Math.max(userId, otherUserId)}`;
       
-      if (!chatsMap.has(chatKey)) {
-        chatsMap.set(chatKey, {
+      if (!chatMap.has(chatKey)) {
+        // Создаем новый чат
+        const chat = {
           id: chatKey,
           otherUser: {
             id: otherUser.id,
@@ -64,25 +80,28 @@ router.get('/', authenticate, async (req, res) => {
             profile: otherUser.profile,
             region: otherUser.region
           },
-          lastMessage: message,
           tradeAd: message.trade,
+          lastMessage: message,
           unreadCount: 0,
-          messages: []
-        });
-      }
-      
-      const chat = chatsMap.get(chatKey);
-      chat.messages.push(message);
-      
-      if (!message.isRead && message.senderId !== userId) {
-        chat.unreadCount++;
+          createdAt: message.createdAt
+        };
+        
+        // Считаем непрочитанные сообщения
+        chat.unreadCount = messages.filter(m => 
+          m.senderId === otherUserId && 
+          m.receiverId === userId && 
+          !m.isRead &&
+          (message.tradeId ? m.tradeId === message.tradeId : !m.tradeId)
+        ).length;
+        
+        chatMap.set(chatKey, chat);
       }
     });
 
-    const chats = Array.from(chatsMap.values()).map(chat => ({
-      ...chat,
-      lastMessage: chat.messages[0]
-    }));
+    // Преобразуем Map в массив и сортируем по времени последнего сообщения
+    const chats = Array.from(chatMap.values()).sort((a, b) => 
+      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
+    );
 
     res.json(chats);
   } catch (error: any) {
@@ -94,109 +113,10 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// Получение сообщений для конкретного чата
-router.get('/:chatId/messages', authenticate, async (req, res) => {
-  try {
-    const { chatId } = req.params;
-    const userId = req.user.userId;
-    
-    const [otherUserId, tradeId] = chatId.split('-');
-    
-    const messages = await prisma.message.findMany({
-      where: {
-        OR: [
-          {
-            senderId: userId,
-            receiverId: otherUserId,
-            ...(tradeId !== 'no-trade' && { tradeId })
-          },
-          {
-            senderId: otherUserId,
-            receiverId: userId,
-            ...(tradeId !== 'no-trade' && { tradeId })
-          }
-        ]
-      },
-      include: {
-        sender: {
-          include: {
-            profile: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    });
-    
-    await prisma.message.updateMany({
-      where: {
-        senderId: otherUserId,
-        receiverId: userId,
-        isRead: false
-      },
-      data: {
-        isRead: true
-      }
-    });
-    
-    res.json(messages);
-  } catch (error: any) {
-    console.error('Get messages error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || 'Failed to get messages' 
-    });
-  }
-});
-
-// Отправка сообщения
-router.post('/send', authenticate, async (req, res) => {
-  try {
-    const { receiverId, content, tradeId } = req.body;
-    const senderId = req.user.userId;
-    
-    if (!receiverId || !content) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Receiver ID and content are required' 
-      });
-    }
-    
-    const message = await prisma.message.create({
-      data: {
-        senderId,
-        receiverId,
-        tradeId: tradeId || null,
-        content,
-        isRead: false
-      },
-      include: {
-        sender: {
-          include: {
-            profile: true
-          }
-        }
-      }
-    });
-    
-    res.json({
-      success: true,
-      message
-    });
-  } catch (error: any) {
-    console.error('Send message error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || 'Failed to send message' 
-    });
-  }
-});
-
-// Отправка trade offer (с изображением)
+// Отправка trade offer (ТОЛЬКО фото)
 router.post('/trade-offer', authenticate, async (req: any, res) => {
   try {
-    const { tradeAdId, textMessage } = req.body;
+    const { tradeAdId } = req.body;
     const userId = req.user.userId;
     
     if (!tradeAdId) {
@@ -226,20 +146,9 @@ router.post('/trade-offer', authenticate, async (req: any, res) => {
     const fileName = `trade-offer-${Date.now()}-${Math.random().toString(36).substring(7)}${path.extname(imageFile.name || '.jpg')}`;
     const filePath = path.join(uploadDir, fileName);
     
-    // Используем mv() для сохранения файла
     await imageFile.mv(filePath);
     
     const imageUrl = `/uploads/trade-offers/${fileName}`;
-    
-    // Создаем trade offer с путем к фото в поле message
-    const tradeOffer = await prisma.tradeOffer.create({
-      data: {
-        tradeAdId,
-        userId,
-        message: imageUrl, // Сохраняем путь к фото здесь
-        status: 'PENDING'
-      }
-    });
     
     // Получаем информацию о торговом объявлении
     const tradeAd = await prisma.tradeAd.findUnique({
@@ -256,13 +165,32 @@ router.post('/trade-offer', authenticate, async (req: any, res) => {
       });
     }
     
-    // Создаем сообщение о trade offer с текстом
+    // Проверяем, не является ли пользователь владельцем объявления
+    if (tradeAd.userId === userId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'You cannot send trade offer to your own ad' 
+      });
+    }
+    
+    // Создаем trade offer
+    const tradeOffer = await prisma.tradeOffer.create({
+      data: {
+        tradeAdId,
+        userId,
+        message: imageUrl, // Сохраняем путь к фото как сообщение
+        status: 'PENDING'
+      }
+    });
+    
+    // Создаем сообщение в чате
     const chatMessage = await prisma.message.create({
       data: {
         senderId: userId,
         receiverId: tradeAd.userId,
         tradeId: tradeAdId,
-        content: textMessage || 'Check out my trade offer!',
+        content: '', // Пустой текст, только фото
+        imageUrl: imageUrl, // URL фото
         isRead: false
       },
       include: {
@@ -274,13 +202,16 @@ router.post('/trade-offer', authenticate, async (req: any, res) => {
       }
     });
     
+    // Обновляем статус объявления на PENDING
+    await prisma.tradeAd.update({
+      where: { id: tradeAdId },
+      data: { status: 'PENDING' }
+    });
+    
     res.json({
       success: true,
       tradeOffer,
-      message: {
-        ...chatMessage,
-        imageUrl: imageUrl
-      }
+      message: chatMessage
     });
   } catch (error: any) {
     console.error('Send trade offer error:', error);
@@ -296,35 +227,56 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
   try {
     const { offerId } = req.params;
     const { accept } = req.body;
+    const userId = req.user.userId;
     
-    const tradeOffer = await prisma.tradeOffer.update({
+    // Получаем trade offer
+    const tradeOffer = await prisma.tradeOffer.findUnique({
       where: { id: offerId },
-      data: {
-        status: accept ? 'ACCEPTED' : 'REJECTED'
-      },
       include: {
         tradeAd: true,
         user: true
       }
     });
     
-    if (accept) {
-      await prisma.tradeAd.update({
-        where: { id: tradeOffer.tradeAdId },
-        data: {
-          status: 'PENDING'
-        }
+    if (!tradeOffer) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Trade offer not found' 
       });
     }
     
+    // Проверяем, имеет ли пользователь право принимать/отклонять
+    if (tradeOffer.tradeAd.userId !== userId) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'You are not authorized to accept/reject this offer' 
+      });
+    }
+    
+    // Обновляем статус trade offer
+    const updatedTradeOffer = await prisma.tradeOffer.update({
+      where: { id: offerId },
+      data: {
+        status: accept ? 'ACCEPTED' : 'REJECTED'
+      }
+    });
+    
+    // Обновляем статус объявления
+    const newStatus = accept ? 'PENDING' : 'ACTIVE';
+    await prisma.tradeAd.update({
+      where: { id: tradeOffer.tradeAdId },
+      data: { status: newStatus }
+    });
+    
+    // Создаем уведомление
     const notificationMessage = await prisma.message.create({
       data: {
-        senderId: tradeOffer.tradeAd.userId,
+        senderId: userId,
         receiverId: tradeOffer.userId,
         tradeId: tradeOffer.tradeAdId,
         content: accept 
-          ? `Trade offer accepted! Let's finalize the details.` 
-          : `Trade offer declined. Maybe next time!`,
+          ? `Your trade offer has been accepted! Let's finalize the details.` 
+          : `Your trade offer has been declined. Maybe next time!`,
         isRead: false
       },
       include: {
@@ -338,7 +290,7 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
     
     res.json({
       success: true,
-      tradeOffer,
+      tradeOffer: updatedTradeOffer,
       message: notificationMessage
     });
   } catch (error: any) {
@@ -350,81 +302,10 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
   }
 });
 
-// Завершение сделки
-router.post('/trade/:tradeId/finish', authenticate, async (req, res) => {
-  try {
-    const { tradeId } = req.params;
-    const { rating, comment } = req.body;
-    const userId = req.user.userId;
-    
-    const tradeAd = await prisma.tradeAd.findUnique({
-      where: { id: tradeId },
-      include: {
-        user: true
-      }
-    });
-    
-    if (!tradeAd) {
-      return res.status(404).json({ 
-        success: false,
-        error: 'Trade ad not found' 
-      });
-    }
-    
-    const ratedUserId = tradeAd.userId === userId ? 
-      (await prisma.tradeOffer.findFirst({
-        where: { tradeAdId: tradeId, status: 'ACCEPTED' },
-        select: { userId: true }
-      }))?.userId : tradeAd.userId;
-    
-    if (!ratedUserId) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Could not determine user to rate' 
-      });
-    }
-    
-    const ratingRecord = await prisma.rating.create({
-      data: {
-        userId: ratedUserId,
-        raterId: userId,
-        tradeId,
-        score: rating || 5,
-        comment: comment || ''
-      }
-    });
-    
-    await prisma.tradeAd.update({
-      where: { id: tradeId },
-      data: {
-        status: 'COMPLETED'
-      }
-    });
-    
-    await prisma.profile.update({
-      where: { userId: ratedUserId },
-      data: {
-        tradeCount: { increment: 1 }
-      }
-    });
-    
-    res.json({
-      success: true,
-      rating: ratingRecord
-    });
-  } catch (error: any) {
-    console.error('Finish trade error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || 'Failed to finish trade' 
-    });
-  }
-});
-
-// Отправка жалобы
+// Отправка жалобы и отмена сделки
 router.post('/complaint', authenticate, async (req, res) => {
   try {
-    const { reportedUserId, reason, details, chatId } = req.body;
+    const { reportedUserId, reason, details, chatId, tradeId } = req.body;
     const reporterId = req.user.userId;
     
     if (!reportedUserId || !reason) {
@@ -440,9 +321,28 @@ router.post('/complaint', authenticate, async (req, res) => {
       reason,
       details,
       chatId,
+      tradeId,
       timestamp: new Date().toISOString()
     });
     
+    // Если есть tradeId, отменяем объявление
+    if (tradeId) {
+      await prisma.tradeAd.update({
+        where: { id: tradeId },
+        data: { status: 'CANCELLED' }
+      });
+      
+      // Находим все активные trade offers для этого объявления и отменяем их
+      await prisma.tradeOffer.updateMany({
+        where: { 
+          tradeAdId: tradeId,
+          status: 'PENDING'
+        },
+        data: { status: 'REJECTED' }
+      });
+    }
+    
+    // Уведомляем админа
     const admin = await prisma.user.findFirst({
       where: { role: 'ADMIN' }
     });
@@ -452,7 +352,7 @@ router.post('/complaint', authenticate, async (req, res) => {
         data: {
           senderId: reporterId,
           receiverId: admin.id,
-          content: `New complaint submitted: ${reason}. Details: ${details}`,
+          content: `COMPLAINT: ${reason}. Details: ${details}. Trade: ${tradeId || 'N/A'}`,
           isRead: false
         }
       });
@@ -460,7 +360,7 @@ router.post('/complaint', authenticate, async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Complaint submitted successfully'
+      message: 'Complaint submitted successfully. Trade has been cancelled if applicable.'
     });
   } catch (error: any) {
     console.error('Submit complaint error:', error);

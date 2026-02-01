@@ -1,11 +1,8 @@
 import React from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import CheckIcon from '@mui/icons-material/Check';
-import CloseIcon from '@mui/icons-material/Close';
-import { Message } from '../../../services/api';
+import { Box, Typography } from '@mui/material';
 
 interface MessageBubbleProps {
-  message: Message & { imageUrl?: string }; // Добавляем imageUrl
+  message: Message & { imageUrl?: string };
   isOwn: boolean;
   formatTime: (dateString: string) => string;
   onAcceptTrade?: (offerId: string) => void;
@@ -19,23 +16,39 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onAcceptTrade,
   onRejectTrade
 }) => {
-  // Определяем, является ли сообщение trade offer по наличию imageUrl
   const isTradeOffer = message.imageUrl != null;
+
+  const handleAcceptClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onAcceptTrade && !isOwn) {
+      onAcceptTrade(message.id);
+    }
+  };
+
+  const handleRejectClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onRejectTrade && !isOwn) {
+      onRejectTrade(message.id);
+    }
+  };
 
   return (
     <Box
       sx={{
-        alignSelf: isOwn ? 'stretch' : 'stretch',
+        alignSelf: isOwn ? 'flex-end' : 'flex-start',
         flexDirection: 'column',
         justifyContent: 'flex-start',
         alignItems: isOwn ? 'flex-end' : 'flex-start',
         gap: 0.5,
         display: 'flex',
         mb: 2,
+        maxWidth: '400px',
       }}
     >
       {isTradeOffer ? (
-        // Сообщение с trade offer
+        // Trade offer сообщение
         <Box
           sx={{
             maxWidth: 400,
@@ -52,12 +65,27 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             outlineOffset: '-1px',
           }}
         >
+          {/* Изображение trade offer */}
           <img
-            style={{ width: 230, height: 230, borderRadius: 10 }}
+            style={{ 
+              width: '100%', 
+              maxWidth: '230px',
+              height: 'auto',
+              borderRadius: '10px' 
+            }}
             src={message.imageUrl || 'https://placehold.co/230x230'}
             alt="Trade Offer"
           />
-          <Box sx={{ alignSelf: 'stretch', textAlign: 'center' }}>
+          
+          {/* Текст с кликабельными символами */}
+          <Box sx={{ 
+            alignSelf: 'stretch', 
+            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 0.5
+          }}>
             <Typography
               component="span"
               sx={{
@@ -70,18 +98,26 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             >
               Trade Offer
             </Typography>
+            
+            {/* Символ принятия */}
             <Typography
               component="span"
+              onClick={!isOwn ? handleAcceptClick : undefined}
               sx={{
                 color: '#EC2EA6',
                 fontSize: 13,
                 fontFamily: '"Nobile", sans-serif',
                 fontWeight: 400,
-                wordWrap: 'break-word',
+                cursor: !isOwn ? 'pointer' : 'default',
+                '&:hover': !isOwn ? {
+                  transform: 'scale(1.2)',
+                  transition: 'transform 0.2s'
+                } : {},
               }}
             >
               {' ✔️'}
             </Typography>
+            
             <Typography
               component="span"
               sx={{
@@ -94,45 +130,28 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             >
               {' / '}
             </Typography>
+            
+            {/* Символ отклонения */}
             <Typography
               component="span"
+              onClick={!isOwn ? handleRejectClick : undefined}
               sx={{
                 color: '#EC2EA6',
                 fontSize: 13,
                 fontFamily: '"Nobile", sans-serif',
                 fontWeight: 400,
-                wordWrap: 'break-word',
+                cursor: !isOwn ? 'pointer' : 'default',
+                '&:hover': !isOwn ? {
+                  transform: 'scale(1.2)',
+                  transition: 'transform 0.2s'
+                } : {},
               }}
             >
               {'❌'}
             </Typography>
-            
-            {!isOwn && onAcceptTrade && onRejectTrade && (
-              <Box sx={{ display: 'flex', gap: 2, mt: 1, justifyContent: 'center' }}>
-                <IconButton
-                  onClick={() => onAcceptTrade(message.id)}
-                  sx={{
-                    background: '#4CAF50',
-                    color: 'white',
-                    '&:hover': { background: '#45a049' },
-                  }}
-                >
-                  <CheckIcon />
-                </IconButton>
-                <IconButton
-                  onClick={() => onRejectTrade(message.id)}
-                  sx={{
-                    background: '#FF4C4C',
-                    color: 'white',
-                    '&:hover': { background: '#ff3333' },
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-            )}
           </Box>
           
+          {/* Текстовое сообщение если есть */}
           {message.content && (
             <Typography
               sx={{
@@ -166,7 +185,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         >
           <Typography
             sx={{
-              width: 380,
+              width: '100%',
               color: isOwn ? '#560D30' : '#11073A',
               fontSize: 13,
               fontFamily: '"Nobile", sans-serif',

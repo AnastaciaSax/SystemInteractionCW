@@ -51,10 +51,22 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
     });
   };
 
-  const handleOpenOffer = () => {
-    setOfferModalOpen(true);
-    onClose(); // Закрываем текущую модалку
+const handleOpenOffer = () => {
+  // Сохраняем информацию о объявлении для чата
+  const tradeAdInfo = {
+    id: ad.id,
+    title: ad.title,
+    userId: ad.userId,
+    photo: ad.photo
   };
+  
+  localStorage.setItem('pendingTradeOffer', JSON.stringify(tradeAdInfo));
+  
+  // Перенаправляем на страницу чата
+  window.location.href = `/chit-chat`;
+  
+  onClose();
+};
 
   const handleViewProfile = () => {
     // TODO: Переход на страницу профиля пользователя
@@ -64,6 +76,10 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
   };
 
   if (!open) return null;
+
+  // В кнопке Offer Trade добавить проверку, не является ли текущий пользователь владельцем:
+const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+const isOwner = currentUser.id === ad.userId;
 
   return (
     <Box
@@ -358,26 +374,28 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
                 View Profile
               </Button>
               
-              <Button
-                onClick={handleOpenOffer}
-                variant="contained"
-                startIcon={<MessageIcon />}
-                sx={{
-                  backgroundColor: '#EC2EA6',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontFamily: '"McLaren", cursive',
-                  fontWeight: 400,
-                  textTransform: 'none',
-                  flex: { xs: '1 0 100%', sm: '1' },
-                  minWidth: '150px',
-                  '&:hover': {
-                    backgroundColor: '#F056B7',
-                  },
-                }}
-              >
-                Offer Trade
-              </Button>
+         {!isOwner && (
+  <Button
+    onClick={handleOpenOffer}
+    variant="contained"
+    startIcon={<MessageIcon />}
+    sx={{
+      backgroundColor: '#EC2EA6',
+      color: 'white',
+      borderRadius: '10px',
+      fontFamily: '"McLaren", cursive',
+      fontWeight: 400,
+      textTransform: 'none',
+      flex: { xs: '1 0 100%', sm: '1' },
+      minWidth: '150px',
+      '&:hover': {
+        backgroundColor: '#F056B7',
+      },
+    }}
+  >
+    Offer Trade
+  </Button>
+)}
             </Box>
           </Box>
         </Box>

@@ -40,6 +40,46 @@ const ChitChat: React.FC = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
+  // Проверяем, есть ли pending trade offer из страницы Trade
+  const pendingTradeOffer = localStorage.getItem('pendingTradeOffer');
+  if (pendingTradeOffer) {
+    const tradeAd = JSON.parse(pendingTradeOffer);
+    
+    // Ищем чат с этим пользователем и объявлением
+    const existingChat = chats.find(chat => 
+      chat.tradeAd?.id === tradeAd.id && 
+      chat.otherUser.id === tradeAd.userId
+    );
+    
+    if (existingChat) {
+      setSelectedChat(existingChat);
+    } else {
+      // Создаем новый чат в состоянии
+      const newChat: Chat = {
+        id: `${tradeAd.userId}-${tradeAd.id}`,
+        otherUser: {
+          id: tradeAd.userId,
+          username: 'Trade Partner', // Можно получить через API
+        },
+        tradeAd: {
+          id: tradeAd.id,
+          title: tradeAd.title,
+          status: 'ACTIVE',
+          photo: tradeAd.photo
+        },
+        unreadCount: 0,
+      };
+      
+      setChats(prev => [newChat, ...prev]);
+      setSelectedChat(newChat);
+    }
+    
+    // Очищаем pending trade offer
+    localStorage.removeItem('pendingTradeOffer');
+  }
+}, [chats]);
+
+  useEffect(() => {
     fetchChats();
   }, []);
 
