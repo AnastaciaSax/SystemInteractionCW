@@ -951,6 +951,63 @@ app.get('/api/users/:id/trade-ads', async (req, res) => {
   }
 });
 
+// Эндпоинт для добавления отзыва и обновления рейтинга
+app.post('/api/ratings', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    
+    const { ratedUserId, tradeId, score, comment } = req.body;
+    
+    // Создаем отзыв
+    const rating = await prisma.rating.create({
+      data: {
+        userId: ratedUserId,
+        raterId: userId,
+        tradeId,
+        score,
+        comment
+      },
+      include: {
+        rater: {
+          include: {
+            profile: true
+          }
+        }
+      }
+    });
+    
+    // Получаем все отзывы для пользователя
+    const userRatings = await prisma.rating.findMany({
+      where: { userId: ratedUserId }
+    });
+    
+    // Рассчитываем новый средний рейтинг
+    const averageRating = userRatings.reduce((sum, r) => sum + r.score, 0) / userRatings.length;
+    
+    // Обновляем рейтинг в профиле
+    await prisma.profile.update({
+      where: { userId: ratedUserId },
+      data: { rating: averageRating }
+    });
+    
+    res.json({
+      success: true,
+      rating,
+      newAverageRating: averageRating
+    });
+  } catch (error: any) {
+    console.error('Error creating rating:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Устаревшие эндпоинты чата - теперь используем отдельный роутер
 // Оставляем для обратной совместимости
 app.get('/api/chats', async (req: any, res) => {

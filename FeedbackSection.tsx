@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, IconButton } from '@mui/material';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { Box, Typography } from '@mui/material';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import Pagination from '../../../components/ui/Pagination';
@@ -15,8 +13,14 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
   
-  // Рассчитываем средний рейтинг
-  const averageRating = user?.profile?.rating || 0;
+  // Рассчитываем реальный средний рейтинг из отзывов
+  const calculateAverageRating = () => {
+    if (ratings.length === 0) return 0;
+    const sum = ratings.reduce((total, rating) => total + (rating.score || 0), 0);
+    return sum / ratings.length;
+  };
+  
+  const averageRating = calculateAverageRating();
   
   // Разбиваем на страницы
   const totalPages = Math.ceil(ratings.length / itemsPerPage);
@@ -37,6 +41,17 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
           ) : (
             <StarBorderIcon key={star} sx={{ color: '#EC2EA6', fontSize: 20 }} />
           )
+        ))}
+      </Box>
+    );
+  };
+
+  // Функция для отображения пустых звезд (когда рейтинг 0)
+  const renderEmptyStars = () => {
+    return (
+      <Box sx={{ display: 'flex', gap: 0.5, mb: 1 }}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <StarBorderIcon key={star} sx={{ color: '#EC2EA6', fontSize: 20, opacity: 0.3 }} />
         ))}
       </Box>
     );
@@ -96,8 +111,13 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
               fontStyle: 'italic',
             }}
           >
-            Based on {ratings.length} reviews
+            Based on {ratings.length} {ratings.length === 1 ? 'review' : 'reviews'}
           </Typography>
+          
+          {/* Отображение звезд общего рейтинга */}
+          <Box sx={{ mt: 2 }}>
+            {averageRating > 0 ? renderStars(averageRating) : renderEmptyStars()}
+          </Box>
         </Box>
 
         {/* Карточки с отзывами - справа */}
@@ -178,7 +198,7 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                       </Box>
                     </Box>
 
-                    {/* Рейтинг - звезды в отзывах оставляем */}
+                    {/* Рейтинг - звезды в отзывах */}
                     <Box>
                       {renderStars(rating.score)}
                     </Box>
