@@ -46,27 +46,40 @@ const Profile: React.FC = () => {
   };
 
   // Загружаем данные профиля
-  const fetchProfileData = async () => {
-    setLoading(true);
-    try {
-      // Получаем текущего пользователя
-      const currentUserStr = localStorage.getItem('user');
-      if (currentUserStr) {
-        setCurrentUser(JSON.parse(currentUserStr));
-      }
+const fetchProfileData = async () => {
+  setLoading(true);
+  try {
+    // Получаем текущего пользователя
+    const currentUserStr = localStorage.getItem('user');
+    if (currentUserStr) {
+      setCurrentUser(JSON.parse(currentUserStr));
+    }
 
-      // Определяем, чей профиль загружать
-      const userId = id || JSON.parse(currentUserStr || '{}').id;
-      
-      if (!userId) {
-        navigate('/sign-in');
-        return;
-      }
+    // Определяем, чей профиль загружать
+    let userId;
+    
+    if (id) {
+      // Если есть id в URL - загружаем профиль другого пользователя
+      userId = id;
+    } else if (currentUserStr) {
+      // Иначе загружаем свой профиль
+      const parsedUser = JSON.parse(currentUserStr);
+      userId = parsedUser.id;
+    } else {
+      // Если нет ни id, ни текущего пользователя - на логин
+      navigate('/sign-in');
+      return;
+    }
 
-      // Загружаем данные профиля пользователя
-      const profileResponse = await profileAPI.getProfile(userId);
-      const userData = profileResponse.data as any;
-      setProfileUser(userData);
+    // Загружаем данные профиля пользователя
+    const profileResponse = await profileAPI.getProfile(userId);
+    const userData = profileResponse.data as any;
+    
+    if (!userData) {
+      throw new Error('User not found');
+    }
+    
+    setProfileUser(userData);
       
       // Загружаем отзывы
       if (userData && userData.ratingsReceived && Array.isArray(userData.ratingsReceived)) {
@@ -83,14 +96,14 @@ const Profile: React.FC = () => {
       const tradeAdsResponse = await profileAPI.getUserTradeAds(userId);
       setUserTradeAds(tradeAdsResponse.data as any[] || []);
       
-    } catch (error) {
-      console.error('Error fetching profile data:', error);
-      showNotification('Failed to load profile data', 'error');
-      navigate('/');
-    } finally {
-      setLoading(false);
-    }
-  };
+    }  catch (error) {
+    console.error('Error fetching profile data:', error);
+    showNotification('Failed to load profile data', 'error');
+    navigate('/');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchProfileData();

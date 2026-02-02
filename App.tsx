@@ -31,7 +31,7 @@ function App() {
             <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/chit-chat" element={<ChitChat />} />
             <Route path="/guide" element={<Guide />} />
-            <Route path="/profile" element={<Profile />} />
+           <Route path="/profile/:id?" element={<Profile />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
           </Routes>

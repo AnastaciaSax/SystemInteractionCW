@@ -1,5 +1,6 @@
 // client/src/components/cards/TradeAdDetailsModal.tsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -30,6 +31,7 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
   ad,
 }) => {
   const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const navigate = useNavigate(); // Хук для навигации
 
   // Получаем полное название condition
   const getConditionLabel = (condition: string) => {
@@ -52,28 +54,35 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
   };
 
 const handleOpenOffer = () => {
-  // Сохраняем информацию о объявлении для чата
   const tradeAdInfo = {
     id: ad.id,
     title: ad.title,
     userId: ad.userId,
-    photo: ad.photo
+    photo: ad.photo,
+    user: ad.user
   };
   
   localStorage.setItem('pendingTradeOffer', JSON.stringify(tradeAdInfo));
-  
-  // Перенаправляем на страницу чата
-  window.location.href = `/chit-chat`;
-  
+  navigate('/chit-chat');
   onClose();
 };
 
-  const handleViewProfile = () => {
-    // TODO: Переход на страницу профиля пользователя
-    console.log('View profile of:', ad.user?.username);
-    // window.location.href = `/profile/${ad.userId}`;
-    alert('View Profile feature coming soon!'); // Заглушка
-  };
+// Исправленная функция для перехода на профиль
+const handleViewProfile = () => {
+  if (ad.user?.id) {
+    // Открываем профиль в новой вкладке
+    window.open(`/profile/${ad.user.id}`, '_blank');
+    // ИЛИ, если хотите в текущей вкладке:
+    // navigate(`/profile/${ad.user.id}`);
+    // onClose();
+  } else if (ad.userId) {
+    // Если нет user.id, но есть userId (запасной вариант)
+    window.open(`/profile/${ad.userId}`, '_blank');
+  } else {
+    console.error('No user ID available for profile view');
+    alert('Cannot view profile: user information is missing.');
+  }
+};
 
   if (!open) return null;
 
@@ -352,6 +361,7 @@ const isOwner = currentUser.id === ad.userId;
 
             {/* Кнопки действий */}
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              {/* Исправленная кнопка View Profile */}
               <Button
                 onClick={handleViewProfile}
                 variant="outlined"

@@ -39,33 +39,39 @@ const ChitChat: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-  useEffect(() => {
+useEffect(() => {
   // Проверяем, есть ли pending trade offer из страницы Trade
   const pendingTradeOffer = localStorage.getItem('pendingTradeOffer');
   if (pendingTradeOffer) {
     const tradeAd = JSON.parse(pendingTradeOffer);
     
-    // Ищем чат с этим пользователем и объявлением
-    const existingChat = chats.find(chat => 
-      chat.tradeAd?.id === tradeAd.id && 
-      chat.otherUser.id === tradeAd.userId
-    );
+    // Формируем id чата так же, как на сервере
+    const sortedIds = [currentUser.id, tradeAd.userId].sort();
+    const chatId = tradeAd.id 
+      ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
+      : `${sortedIds[0]}-${sortedIds[1]}`;
+    
+    // Ищем чат с этим id
+    const existingChat = chats.find(chat => chat.id === chatId);
     
     if (existingChat) {
       setSelectedChat(existingChat);
     } else {
       // Создаем новый чат в состоянии
       const newChat: Chat = {
-        id: `${tradeAd.userId}-${tradeAd.id}`,
+        id: chatId,
         otherUser: {
           id: tradeAd.userId,
-          username: 'Trade Partner', // Можно получить через API
+          username: tradeAd.user?.username || 'Trade Partner',
+          profile: tradeAd.user?.profile,
+          region: tradeAd.user?.region
         },
         tradeAd: {
           id: tradeAd.id,
           title: tradeAd.title,
           status: 'ACTIVE',
-          photo: tradeAd.photo
+          photo: tradeAd.photo,
+          userId: tradeAd.userId // Убедитесь, что userId добавлен
         },
         unreadCount: 0,
       };
@@ -77,7 +83,7 @@ const ChitChat: React.FC = () => {
     // Очищаем pending trade offer
     localStorage.removeItem('pendingTradeOffer');
   }
-}, [chats]);
+}, [chats, currentUser.id]);
 
   useEffect(() => {
     fetchChats();
@@ -148,41 +154,39 @@ const ChitChat: React.FC = () => {
     }
   };
 
-  const handleSendTradeOffer = async (file: File, textMessage: string) => {
-    if (!selectedChat || !selectedChat.tradeAd) {
-      showNotification('No trade ad selected for offer', 'error');
-      return;
+  const handleSendTradeOffer = async (file: File) => {  // Убрали textMessage
+  if (!selectedChat || !selectedChat.tradeAd) {
+    showNotification('No trade ad selected for offer', 'error');
+    return;
+  }
+  
+  try {
+    const formData = new FormData();
+    formData.append('tradeAdId', selectedChat.tradeAd.id);
+    formData.append('image', file);  // Только файл
+    
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/chat/trade-offer', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error);
     }
     
-    try {
-      const formData = new FormData();
-      formData.append('tradeAdId', selectedChat.tradeAd.id);
-      formData.append('textMessage', textMessage);
-      formData.append('image', file);
-      
-      // Используем axios напрямую для отправки формы
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/chat/trade-offer', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-      
-      setMessages(prev => [...prev, result.message]);
-      showNotification('Trade offer sent successfully', 'success');
-    } catch (error: any) {
-      console.error('Error sending trade offer:', error);
-      showNotification(error.message || 'Failed to send trade offer', 'error');
-    }
-  };
+    setMessages(prev => [...prev, result.message]);
+    showNotification('Trade offer sent successfully', 'success');
+  } catch (error: any) {
+    console.error('Error sending trade offer:', error);
+    showNotification(error.message || 'Failed to send trade offer', 'error');
+  }
+};
 
   const handleAcceptTrade = async (offerId: string) => {
     try {
@@ -382,48 +386,45 @@ const ChitChat: React.FC = () => {
               loading={loading}
             />
             
-            {selectedChat ? (
-              <ChatWindow
-                chat={selectedChat}
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                onSendTradeOffer={handleSendTradeOffer}
-                onAcceptTrade={handleAcceptTrade}
-                onRejectTrade={handleRejectTrade}
-                onSubmitComplaint={handleSubmitComplaint}
-                onFinishTrade={handleFinishTrade}
-                loadingMessages={loadingMessages}
-                currentUser={currentUser}
-              />
-            ) : (
-              <Box
-                sx={{
-                  flex: '1 1 0',
-                  alignSelf: 'stretch',
-                  padding: 3,
-                  background: 'white',
-                  borderRadius: 2,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: '#852654',
-                    fontSize: '18px',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  {chats.length === 0 
-                    ? 'No messages yet. Start trading to chat with collectors! 🤝' 
-                    : 'Select a chat to start messaging! 💬'
-                  }
-                </Typography>
-              </Box>
-            )}
+{selectedChat ? (
+  <ChatWindow
+    chat={selectedChat}
+    messages={messages}
+    onSendMessage={handleSendMessage}
+    onSendTradeOffer={handleSendTradeOffer}
+    onAcceptTrade={handleAcceptTrade}
+    onRejectTrade={handleRejectTrade}
+    onSubmitComplaint={handleSubmitComplaint}
+    onFinishTrade={handleFinishTrade}
+    loadingMessages={loadingMessages}
+    currentUser={currentUser}
+  />
+) : (
+  <Box
+    sx={{
+      flex: '1 1 0',
+      alignSelf: 'stretch',
+      padding: 3,
+      background: 'white',
+      borderRadius: 2,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      textAlign: 'center',
+    }}
+  >
+    <Typography
+      sx={{
+        color: '#852654',
+        fontSize: '18px',
+        fontFamily: '"Nobile", sans-serif',
+        fontStyle: 'italic',
+      }}
+    >
+      Select a chat to start messaging! 💬
+    </Typography>
+  </Box>
+)}
           </Box>
         ) : (
           <Box

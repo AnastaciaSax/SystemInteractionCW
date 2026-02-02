@@ -6,6 +6,7 @@ import {
   TextField,
   Skeleton,
   Tooltip,
+  Divider,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import TradeOfferModal from './TradeOfferModal';
@@ -13,6 +14,7 @@ import ComplaintModal from './ComplaintModal';
 import FinishTradeModal from './FinishTradeModal';
 import MessageBubble from './MessageBubble';
 import { Chat, Message } from '../../../services/api';
+
 
 // Иконки из public/assets
 const ProfileIcon = ({ active }: { active?: boolean }) => (
@@ -46,12 +48,19 @@ const SubmitTradeIcon = ({ active }: { active?: boolean }) => (
     style={{ width: 35, height: 35 }}
   />
 );
+interface TradeAd {
+  id: string;
+  title: string;
+  status: string;
+  photo?: string;
+  userId?: string; // Добавляем userId
+}
 
 interface ChatWindowProps {
   chat: Chat;
   messages: Message[];
   onSendMessage: (content: string) => void;
-  onSendTradeOffer: (file: File, message: string) => void;
+  onSendTradeOffer: (file: File) => void; // Изменено: теперь только файл
   onAcceptTrade: (offerId: string) => void;
   onRejectTrade: (offerId: string) => void;
   onSubmitComplaint: (reason: string, details: string) => void;
@@ -105,9 +114,16 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowTradeOfferModal(true);
   };
 
-  const handleViewProfile = () => {
-    window.open(`/profile/${chat.otherUser.id}`, '_blank');
-  };
+const handleViewProfile = () => {
+  if (!chat?.otherUser?.id) {
+    console.error('No user ID available for profile view');
+    return;
+  }
+  
+  // Открываем профиль в новой вкладке
+  window.open(`/profile/${chat.otherUser.id}`, '_blank');
+};
+
 
   const handleReport = () => {
     setShowComplaintModal(true);
@@ -127,74 +143,33 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   const isTradeReadyToFinish = chat.tradeAd?.status === 'ACCEPTED';
 
-const handleFinishTradeSubmit = (rating: number, comment: string) => {
-  if (chat.tradeAd?.id) {
-    onFinishTrade(chat.tradeAd.id, rating, comment);
-    setShowFinishTradeModal(false);
-  }
-};
-
-const handleSendTradeOffer = async (file: File) => {
-  if (!selectedChat || !selectedChat.tradeAd) {
-    showNotification('No trade ad selected for offer', 'error');
-    return;
-  }
-  
-  // Проверяем, не является ли пользователь владельцем объявления
-  if (selectedChat.tradeAd.userId === currentUser.id) {
-    showNotification('You cannot send trade offer to your own ad', 'error');
-    return;
-  }
-  
-  try {
-    const formData = new FormData();
-    formData.append('tradeAdId', selectedChat.tradeAd.id);
-    formData.append('image', file);
-    
-    const token = localStorage.getItem('token');
-    const response = await fetch('/api/chat/trade-offer', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error);
+  const handleFinishTradeSubmit = (rating: number, comment: string) => {
+    if (chat.tradeAd?.id) {
+      onFinishTrade(chat.tradeAd.id, rating, comment);
+      setShowFinishTradeModal(false);
     }
-    
-    // Добавляем сообщение в чат
-    setMessages(prev => [...prev, result.message]);
-    
-    // Обновляем список чатов
-    fetchChats();
-    
-    showNotification('Trade offer sent successfully', 'success');
-  } catch (error: any) {
-    console.error('Error sending trade offer:', error);
-    showNotification(error.message || 'Failed to send trade offer', 'error');
-  }
-};
-const handleSubmitComplaint = async (reason: string, details: string) => {
-  if (!selectedChat) return;
-  
-  try {
-    await chatAPI.submitComplaint({
-      reportedUserId: selectedChat.otherUser.id,
-      reason,
-      details,
-      chatId: selectedChat.id,
-      tradeId: selectedChat.tradeAd?.id // Добавляем tradeId для отмены объявления
-    });
-    
-    showNotification('Complaint submitted successfully. Trade has been cancelled.', 'success');
-    fetchChats(); // Обновляем чаты для обновления статусов
-  } catch (error) {
-    console.error('Error submitting complaint:', error);
-    showNotification('Failed to submit complaint', 'error');
+  };
+
+  // Функция для отправки trade offer (адаптированная под новый пропс)
+  const handleSendTradeOfferWrapper = async (file: File) => {
+    onSendTradeOffer(file);
+    setShowTradeOfferModal(false);
+  };
+
+  // Функция для отправки жалобы
+  const handleSubmitComplaintWrapper = async (reason: string, details: string) => {
+    onSubmitComplaint(reason, details);
+    setShowComplaintModal(false);
+  };
+
+    // Функция для получения текста статуса
+const getStatusText = (status: string | undefined) => {
+  switch (status) {
+    case 'ACTIVE': return 'Available';
+    case 'PENDING': return 'In Progress';
+    case 'COMPLETED': return 'Completed';
+    case 'CANCELLED': return 'Cancelled';
+    default: return 'Available';
   }
 };
 
@@ -231,9 +206,8 @@ const handleSubmitComplaint = async (reason: string, details: string) => {
           sx={{
             paddingLeft: 0.5,
             paddingRight: 0.5,
-            paddingTop: 0.75,
-            paddingBottom: 0.75,
-            boxShadow: '0px 0px 8px #F6C4D4',
+            paddingTop: 0.2,
+            paddingBottom: 0.2,
             justifyContent: 'flex-start',
             alignItems: 'center',
             gap: 1,
@@ -254,38 +228,38 @@ const handleSubmitComplaint = async (reason: string, details: string) => {
               display: 'flex',
             }}
           >
-           <img
-  style={{ width: 40, height: 40, borderRadius: '50%' }}
-  src={chat.tradeAd?.photo || 'https://placehold.co/40x40'}
-  alt={chat.tradeAd?.title || 'Trade Item'}
-/>
-
-<Typography
-  sx={{
-    alignSelf: 'stretch',
-    color: '#560D30',
-    fontSize: 15,
-    fontFamily: '"McLaren", cursive',
-    fontWeight: 400,
-    wordWrap: 'break-word',
-  }}
->
-  {chat.tradeAd?.title || 'Trade Item'}
-</Typography>
-
-<Typography
-  sx={{
-    alignSelf: 'stretch',
-    color: '#852654',
-    fontSize: 11,
-    fontFamily: '"Nobile", sans-serif',
-    fontWeight: 400,
-    wordWrap: 'break-word',
-  }}
->
-  Status: {chat.tradeAd?.status || 'Available'}
-</Typography>
+            <img
+              style={{ width: 40, height: 40, borderRadius: '50%' }}
+              src={chat.tradeAd?.photo || 'https://placehold.co/40x40'}
+              alt={chat.tradeAd?.title || 'Trade Item'}
+            />
           </Box>
+          
+          {/* Информация об объявлении */}
+        <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 0.5, display: 'flex' }}>
+  <Typography
+    sx={{
+      color: '#560D30',
+      fontSize: 15,
+      fontFamily: '"McLaren", cursive',
+      fontWeight: 400,
+      wordWrap: 'break-word',
+    }}
+  >
+    {chat.tradeAd?.title || 'Trade Item'}
+  </Typography>
+  <Typography
+    sx={{
+      color: '#852654',
+      fontSize: 11,
+      fontFamily: '"Nobile", sans-serif',
+      fontWeight: 400,
+      wordWrap: 'break-word',
+    }}
+  >
+    Status: {getStatusText(chat.tradeAd?.status)}
+  </Typography>
+</Box>
         </Box>
         
         {/* Иконки действий */}
@@ -325,12 +299,11 @@ const handleSubmitComplaint = async (reason: string, details: string) => {
       </Box>
       
       {/* Разделительная линия */}
-      <Box
+      <Divider
         sx={{
-          alignSelf: 'stretch',
-          height: 0,
-          outline: '1px rgba(86.06, 12.58, 48.21, 0.50) solid',
-          outlineOffset: '-1px',
+          width: '100%',
+          height: '2px',
+          background: 'rgba(86, 13, 48, 0.50)',
         }}
       />
       
@@ -478,17 +451,19 @@ const handleSubmitComplaint = async (reason: string, details: string) => {
               </IconButton>
             </Tooltip>
             
-            {/* Иконка прикрепления файла */}
-            <Tooltip title="Attach Trade Offer">
-              <IconButton
-                onClick={handleAttachTradeOffer}
-                onMouseEnter={() => setActiveIcon('attach')}
-                onMouseLeave={() => setActiveIcon(null)}
-                sx={{ p: 0 }}
-              >
-                <AttachIcon active={activeIcon === 'attach'} />
-              </IconButton>
-            </Tooltip>
+            {/* Иконка прикрепления файла - ТОЛЬКО если это не наше объявление */}
+            {chat.tradeAd && chat.tradeAd.userId && chat.tradeAd.userId !== currentUser.id && (
+              <Tooltip title="Attach Trade Offer">
+                <IconButton
+                  onClick={handleAttachTradeOffer}
+                  onMouseEnter={() => setActiveIcon('attach')}
+                  onMouseLeave={() => setActiveIcon(null)}
+                  sx={{ p: 0 }}
+                >
+                  <AttachIcon active={activeIcon === 'attach'} />
+                </IconButton>
+              </Tooltip>
+            )}
             
             {/* Иконка завершения сделки */}
             {isTradeReadyToFinish && (
@@ -511,14 +486,14 @@ const handleSubmitComplaint = async (reason: string, details: string) => {
       <TradeOfferModal
         open={showTradeOfferModal}
         onClose={() => setShowTradeOfferModal(false)}
-        onSendOffer={onSendTradeOffer}
+        onSendOffer={handleSendTradeOfferWrapper}
         tradeAd={chat.tradeAd}
       />
       
       <ComplaintModal
         open={showComplaintModal}
         onClose={() => setShowComplaintModal(false)}
-        onSubmit={onSubmitComplaint}
+        onSubmit={handleSubmitComplaintWrapper}
         reportedUser={chat.otherUser}
       />
       

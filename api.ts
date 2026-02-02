@@ -204,6 +204,7 @@ export interface Chat {
     title: string;
     status: string;
     photo?: string;
+    userId?: string; // Добавьте это
   };
   unreadCount: number;
 }

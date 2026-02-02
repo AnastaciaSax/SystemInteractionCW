@@ -1,8 +1,9 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
+import { Message } from '../../../services/api';
 
 interface MessageBubbleProps {
-  message: Message & { imageUrl?: string };
+  message: Message;
   isOwn: boolean;
   formatTime: (dateString: string) => string;
   onAcceptTrade?: (offerId: string) => void;
@@ -16,7 +17,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   onAcceptTrade,
   onRejectTrade
 }) => {
-  const isTradeOffer = message.imageUrl != null;
+  // Определяем, является ли сообщение trade offer по маркеру в content
+  const isTradeOffer = message.content.startsWith('[TRADE_OFFER]');
+  const imageUrl = isTradeOffer ? message.content.replace('[TRADE_OFFER]', '') : '';
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -73,7 +76,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               height: 'auto',
               borderRadius: '10px' 
             }}
-            src={message.imageUrl || 'https://placehold.co/230x230'}
+            src={imageUrl || 'https://placehold.co/230x230'}
             alt="Trade Offer"
           />
           
@@ -150,23 +153,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               {'❌'}
             </Typography>
           </Box>
-          
-          {/* Текстовое сообщение если есть */}
-          {message.content && (
-            <Typography
-              sx={{
-                alignSelf: 'stretch',
-                color: '#560D30',
-                fontSize: 13,
-                fontFamily: '"Nobile", sans-serif',
-                fontWeight: 400,
-                wordWrap: 'break-word',
-                mt: 1,
-              }}
-            >
-              {message.content}
-            </Typography>
-          )}
         </Box>
       ) : (
         // Обычное сообщение
