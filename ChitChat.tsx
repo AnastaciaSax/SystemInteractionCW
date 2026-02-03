@@ -41,9 +41,9 @@ const ChitChat: React.FC = () => {
 
 useEffect(() => {
   // Проверяем, есть ли pending trade offer из страницы Trade
-  const pendingTradeOffer = localStorage.getItem('pendingTradeOffer');
-  if (pendingTradeOffer) {
-    const tradeAd = JSON.parse(pendingTradeOffer);
+  const pendingTradeOfferStr = localStorage.getItem('pendingTradeOffer');
+  if (pendingTradeOfferStr && chats.length > 0) {
+    const tradeAd = JSON.parse(pendingTradeOfferStr);
     
     // Формируем id чата так же, как на сервере
     const sortedIds = [currentUser.id, tradeAd.userId].sort();
@@ -63,7 +63,7 @@ useEffect(() => {
         otherUser: {
           id: tradeAd.userId,
           username: tradeAd.user?.username || 'Trade Partner',
-          profile: tradeAd.user?.profile,
+          profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
           region: tradeAd.user?.region
         },
         tradeAd: {
@@ -71,7 +71,7 @@ useEffect(() => {
           title: tradeAd.title,
           status: 'ACTIVE',
           photo: tradeAd.photo,
-          userId: tradeAd.userId // Убедитесь, что userId добавлен
+          userId: tradeAd.userId
         },
         unreadCount: 0,
       };
@@ -89,11 +89,13 @@ useEffect(() => {
     fetchChats();
   }, []);
 
-  useEffect(() => {
-    if (selectedChat) {
-      fetchMessages(selectedChat.id);
-    }
-  }, [selectedChat]);
+useEffect(() => {
+  if (selectedChat) {
+    fetchMessages(selectedChat.id, 1);
+    setCurrentPage(1);
+    setHasMoreMessages(true);
+  }
+}, [selectedChat]);
 
   const fetchChats = async () => {
     setLoading(true);
@@ -112,18 +114,27 @@ useEffect(() => {
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
-    setLoadingMessages(true);
-    try {
-      const response = await chatAPI.getMessages(chatId);
+  const fetchMessages = async (chatId: string, page = 1) => {
+  setLoadingMessages(true);
+  try {
+    const response = await chatAPI.getMessages(chatId, page, 20);
+    if (page === 1) {
       setMessages(response.data);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      showNotification('Failed to load messages', 'error');
-    } finally {
-      setLoadingMessages(false);
+    } else {
+      setMessages(prev => [...response.data, ...prev]);
     }
-  };
+    
+    // Проверяем, есть ли еще сообщения
+    if (response.data.length < 20) {
+      setHasMoreMessages(false);
+    }
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    showNotification('Failed to load messages', 'error');
+  } finally {
+    setLoadingMessages(false);
+  }
+};
 
   const handleSendMessage = async (content: string) => {
     if (!selectedChat) return;

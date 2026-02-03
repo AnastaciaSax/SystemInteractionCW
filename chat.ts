@@ -65,10 +65,11 @@ router.get('/', authenticate, async (req, res) => {
       const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
       const otherUser = message.senderId === userId ? message.receiver : message.sender;
       
-      // Создаем уникальный ключ чата: комбинация пользователей + tradeId
-      const chatKey = message.tradeId 
-        ? `${Math.min(userId, otherUserId)}-${Math.max(userId, otherUserId)}-${message.tradeId}`
-        : `${Math.min(userId, otherUserId)}-${Math.max(userId, otherUserId)}`;
+// Создаем уникальный ключ чата: комбинация пользователей + tradeId
+const sortedIds = [userId, otherUserId].sort();
+const chatKey = message.tradeId 
+  ? `${sortedIds[0]}-${sortedIds[1]}-${message.tradeId}`
+  : `${sortedIds[0]}-${sortedIds[1]}`;
       
       if (!chatMap.has(chatKey)) {
         // Создаем новый чат
@@ -183,24 +184,23 @@ router.post('/trade-offer', authenticate, async (req: any, res) => {
       }
     });
     
-    // Создаем сообщение в чате
-    const chatMessage = await prisma.message.create({
-      data: {
-        senderId: userId,
-        receiverId: tradeAd.userId,
-        tradeId: tradeAdId,
-        content: '', // Пустой текст, только фото
-        imageUrl: imageUrl, // URL фото
-        isRead: false
-      },
+    // Создаем сообщение в чате - сохраняем URL в content
+const chatMessage = await prisma.message.create({
+  data: {
+    senderId: userId,
+    receiverId: tradeAd.userId,
+    tradeId: tradeAdId,
+    content: `[TRADE_OFFER]${imageUrl}|${tradeOffer.id}`, // Добавляем ID trade offer
+    isRead: false
+  },
+  include: {
+    sender: {
       include: {
-        sender: {
-          include: {
-            profile: true
-          }
-        }
+        profile: true
       }
-    });
+    }
+  }
+});
     
     // Обновляем статус объявления на PENDING
     await prisma.tradeAd.update({
@@ -367,6 +367,115 @@ router.post('/complaint', authenticate, async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error.message || 'Failed to submit complaint' 
+    });
+  }
+});
+
+router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => {
+  try {
+    const { tradeAdId, otherUserId } = req.params;
+    const userId = req.user.userId;
+    
+    // Проверяем, есть ли уже сообщения между этими пользователями по этому объявлению
+    const existingMessages = await prisma.message.findMany({
+      where: {
+        OR: [
+          { 
+            senderId: userId, 
+            receiverId: otherUserId,
+            tradeId: tradeAdId 
+          },
+          { 
+            senderId: otherUserId, 
+            receiverId: userId,
+            tradeId: tradeAdId 
+          }
+        ]
+      },
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        },
+        receiver: {
+          include: {
+            profile: true
+          }
+        },
+        trade: true
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1
+    });
+    
+    if (existingMessages.length > 0) {
+      // Чат уже существует
+      const message = existingMessages[0];
+      const otherUser = message.senderId === userId ? message.receiver : message.sender;
+      
+      const sortedIds = [userId, otherUserId].sort();
+      const chatId = tradeAdId 
+        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAdId}`
+        : `${sortedIds[0]}-${sortedIds[1]}`;
+      
+      res.json({
+        chat: {
+          id: chatId,
+          otherUser: {
+            id: otherUser.id,
+            username: otherUser.username,
+            profile: otherUser.profile,
+            region: otherUser.region
+          },
+          tradeAd: message.trade,
+          unreadCount: 0
+        },
+        existing: true
+      });
+    } else {
+      // Создаем новый чат (но не создаем сообщение)
+      const otherUser = await prisma.user.findUnique({
+        where: { id: otherUserId },
+        include: { profile: true }
+      });
+      
+      const tradeAd = await prisma.tradeAd.findUnique({
+        where: { id: tradeAdId }
+      });
+      
+      if (!otherUser || !tradeAd) {
+        return res.status(404).json({ 
+          success: false,
+          error: 'User or trade ad not found' 
+        });
+      }
+      
+      const sortedIds = [userId, otherUserId].sort();
+      const chatId = tradeAdId 
+        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAdId}`
+        : `${sortedIds[0]}-${sortedIds[1]}`;
+      
+      res.json({
+        chat: {
+          id: chatId,
+          otherUser: {
+            id: otherUser.id,
+            username: otherUser.username,
+            profile: otherUser.profile,
+            region: otherUser.region
+          },
+          tradeAd: tradeAd,
+          unreadCount: 0
+        },
+        existing: false
+      });
+    }
+  } catch (error: any) {
+    console.error('Ensure chat error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to ensure chat' 
     });
   }
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -14,7 +14,6 @@ import ComplaintModal from './ComplaintModal';
 import FinishTradeModal from './FinishTradeModal';
 import MessageBubble from './MessageBubble';
 import { Chat, Message } from '../../../services/api';
-
 
 // Иконки из public/assets
 const ProfileIcon = ({ active }: { active?: boolean }) => (
@@ -87,6 +86,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showFinishTradeModal, setShowFinishTradeModal] = useState(false);
   const [activeIcon, setActiveIcon] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+const [currentPage, setCurrentPage] = useState(1);
+const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -95,6 +97,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Функция для получения текста статуса
+const getStatusText = (status: string | undefined) => {
+  switch (status) {
+    case 'ACTIVE': return 'Available';
+    case 'PENDING': return 'In Progress';
+    case 'COMPLETED': return 'Completed';
+    case 'CANCELLED': return 'Cancelled';
+    default: return 'Available';
+  }
+};
 
   const handleSendMessage = () => {
     if (message.trim()) {
@@ -162,16 +175,60 @@ const handleViewProfile = () => {
     setShowComplaintModal(false);
   };
 
-    // Функция для получения текста статуса
-const getStatusText = (status: string | undefined) => {
-  switch (status) {
-    case 'ACTIVE': return 'Available';
-    case 'PENDING': return 'In Progress';
-    case 'COMPLETED': return 'Completed';
-    case 'CANCELLED': return 'Cancelled';
-    default: return 'Available';
+  // Функция для загрузки дополнительных сообщений
+const loadMoreMessages = useCallback(async () => {
+  if (!selectedChat || loadingMessages || !hasMoreMessages) return;
+  
+  try {
+    const nextPage = currentPage + 1;
+    const response = await chatAPI.getMessages(selectedChat.id, nextPage, 20);
+    const newMessages = response.data;
+    
+    if (newMessages.length === 0) {
+      setHasMoreMessages(false);
+      return;
+    }
+    
+    // Сохраняем текущую позицию прокрутки
+    const container = messagesContainerRef.current;
+    const scrollHeightBefore = container?.scrollHeight || 0;
+    const scrollTopBefore = container?.scrollTop || 0;
+    
+    // Добавляем сообщения в начало
+    setMessages(prev => [...newMessages.reverse(), ...prev]);
+    setCurrentPage(nextPage);
+    
+    // После обновления DOM восстанавливаем позицию прокрутки
+    setTimeout(() => {
+      if (container) {
+        const scrollHeightAfter = container.scrollHeight;
+        container.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+      }
+    }, 0);
+  } catch (error) {
+    console.error('Error loading more messages:', error);
   }
-};
+}, [selectedChat, loadingMessages, hasMoreMessages, currentPage]);
+
+// Обработчик прокрутки
+const handleScroll = useCallback(() => {
+  const container = messagesContainerRef.current;
+  if (!container || loadingMessages || !hasMoreMessages) return;
+  
+  // Если пользователь прокрутил близко к верху
+  if (container.scrollTop < 100) {
+    loadMoreMessages();
+  }
+}, [loadMoreMessages, loadingMessages, hasMoreMessages]);
+
+// Добавьте обработчик прокрутки
+useEffect(() => {
+  const container = messagesContainerRef.current;
+  if (container) {
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }
+}, [handleScroll]);
 
   return (
     <Box
@@ -308,73 +365,83 @@ const getStatusText = (status: string | undefined) => {
       />
       
       {/* Окно сообщений */}
-      <Box
-        sx={{
-          alignSelf: 'stretch',
-          flex: '1 1 0',
-          padding: 2,
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          gap: 1,
-          display: 'flex',
-          overflow: 'auto',
-          '&::-webkit-scrollbar': {
-            width: '6px',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: 'rgba(240, 94, 186, 0.1)',
-            borderRadius: '3px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: '#F05EBA',
-            borderRadius: '3px',
-          },
-        }}
-      >
-        {loadingMessages ? (
-          // Skeleton для сообщений
-          <>
-            {[1, 2, 3].map(i => (
-              <Box
-                key={i}
-                sx={{
-                  display: 'flex',
-                  justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
-                  width: '100%',
-                  mb: 2,
-                }}
-              >
-                <Skeleton
-                  variant="rectangular"
-                  width={i === 3 ? '400px' : '300px'}
-                  height={i === 3 ? 280 : 80}
-                  sx={{ borderRadius: 2 }}
-                />
-              </Box>
-            ))}
-          </>
-        ) : (
-          // Сообщения
-          <>
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                message={msg}
-                isOwn={msg.senderId === currentUser.id}
-                formatTime={(date) => new Date(date).toLocaleTimeString([], { 
-                  hour: 'numeric', 
-                  minute: '2-digit',
-                  hour12: true 
-                }).toUpperCase()}
-                onAcceptTrade={handleAcceptTradeOffer}
-                onRejectTrade={handleRejectTradeOffer}
-              />
-            ))}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </Box>
+<Box
+  ref={messagesContainerRef}
+  sx={{
+    alignSelf: 'stretch',
+    flex: '1 1 0',
+    padding: 2,
+    flexDirection: 'column',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 1,
+    display: 'flex',
+    overflow: 'auto',
+    position: 'relative',
+    '&::-webkit-scrollbar': {
+      width: '6px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'rgba(240, 94, 186, 0.1)',
+      borderRadius: '3px',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#F05EBA',
+      borderRadius: '3px',
+    },
+  }}
+>
+  {loadingMessages && currentPage === 1 ? (
+    // Skeleton для сообщений
+    <>
+      {[1, 2, 3].map(i => (
+        <Box
+          key={i}
+          sx={{
+            display: 'flex',
+            justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
+            width: '100%',
+            mb: 2,
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            width={i === 3 ? '400px' : '300px'}
+            height={i === 3 ? 280 : 80}
+            sx={{ borderRadius: 2 }}
+          />
+        </Box>
+      ))}
+    </>
+  ) : (
+    // Сообщения
+    <>
+      {/* Индикатор загрузки */}
+      {loadingMessages && (
+        <Box sx={{ alignSelf: 'center', py: 2 }}>
+          <CircularProgress size={24} sx={{ color: '#EC2EA6' }} />
+        </Box>
+      )}
+      
+      {/* Сообщения */}
+      {messages.map((msg) => (
+        <MessageBubble
+          key={msg.id}
+          message={msg}
+          isOwn={msg.senderId === currentUser.id}
+          formatTime={(date) => new Date(date).toLocaleTimeString([], { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+          }).toUpperCase()}
+          onAcceptTrade={handleAcceptTradeOffer}
+          onRejectTrade={handleRejectTradeOffer}
+        />
+      ))}
+      <div ref={messagesEndRef} />
+    </>
+  )}
+</Box>
       
       {/* Поле ввода сообщения */}
       <Box

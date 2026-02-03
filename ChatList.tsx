@@ -82,6 +82,7 @@ const ChatList: React.FC<ChatListProps> = ({
               position: 'relative',
               boxShadow: '0px 0px 8px #F6C4D4',
               cursor: 'pointer',
+              borderRadius: 2,
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: 'translateX(2px)',

@@ -54,12 +54,18 @@ const TradeAdDetailsModal: React.FC<TradeAdDetailsModalProps> = ({
   };
 
 const handleOpenOffer = () => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  
   const tradeAdInfo = {
     id: ad.id,
     title: ad.title,
     userId: ad.userId,
     photo: ad.photo,
-    user: ad.user
+    user: ad.user,
+    // Добавляем текущего пользователя для создания чата
+    currentUserId: currentUser.id,
+    currentUsername: currentUser.username,
+    currentUserProfile: currentUser.profile
   };
   
   localStorage.setItem('pendingTradeOffer', JSON.stringify(tradeAdInfo));

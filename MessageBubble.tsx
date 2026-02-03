@@ -19,21 +19,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
   // Определяем, является ли сообщение trade offer по маркеру в content
   const isTradeOffer = message.content.startsWith('[TRADE_OFFER]');
-  const imageUrl = isTradeOffer ? message.content.replace('[TRADE_OFFER]', '') : '';
+  
+  // Извлекаем imageUrl и tradeOfferId из content
+  let imageUrl = '';
+  let tradeOfferId = '';
+  
+  if (isTradeOffer) {
+    // Формат: [TRADE_OFFER]imageUrl|tradeOfferId
+    const contentWithoutMarker = message.content.replace('[TRADE_OFFER]', '');
+    const parts = contentWithoutMarker.split('|');
+    imageUrl = parts[0] || '';
+    if (parts.length > 1) {
+      tradeOfferId = parts[1];
+    }
+  }
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAcceptTrade && !isOwn) {
-      onAcceptTrade(message.id);
+    if (onAcceptTrade && !isOwn && tradeOfferId) {
+      onAcceptTrade(tradeOfferId);
     }
   };
 
   const handleRejectClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onRejectTrade && !isOwn) {
-      onRejectTrade(message.id);
+    if (onRejectTrade && !isOwn && tradeOfferId) {
+      onRejectTrade(tradeOfferId);
     }
   };
 
@@ -102,56 +115,62 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               Trade Offer
             </Typography>
             
-            {/* Символ принятия */}
-            <Typography
-              component="span"
-              onClick={!isOwn ? handleAcceptClick : undefined}
-              sx={{
-                color: '#EC2EA6',
-                fontSize: 13,
-                fontFamily: '"Nobile", sans-serif',
-                fontWeight: 400,
-                cursor: !isOwn ? 'pointer' : 'default',
-                '&:hover': !isOwn ? {
-                  transform: 'scale(1.2)',
-                  transition: 'transform 0.2s'
-                } : {},
-              }}
-            >
-              {' ✔️'}
-            </Typography>
-            
-            <Typography
-              component="span"
-              sx={{
-                color: '#852654',
-                fontSize: 13,
-                fontFamily: '"Nobile", sans-serif',
-                fontWeight: 400,
-                wordWrap: 'break-word',
-              }}
-            >
-              {' / '}
-            </Typography>
-            
-            {/* Символ отклонения */}
-            <Typography
-              component="span"
-              onClick={!isOwn ? handleRejectClick : undefined}
-              sx={{
-                color: '#EC2EA6',
-                fontSize: 13,
-                fontFamily: '"Nobile", sans-serif',
-                fontWeight: 400,
-                cursor: !isOwn ? 'pointer' : 'default',
-                '&:hover': !isOwn ? {
-                  transform: 'scale(1.2)',
-                  transition: 'transform 0.2s'
-                } : {},
-              }}
-            >
-              {'❌'}
-            </Typography>
+            {/* Символ принятия - только для получателя */}
+            {!isOwn && (
+              <>
+                <Typography
+                  component="span"
+                  onClick={handleAcceptClick}
+                  sx={{
+                    color: '#EC2EA6',
+                    fontSize: 13,
+                    fontFamily: '"Nobile", sans-serif',
+                    fontWeight: 400,
+                    cursor: tradeOfferId ? 'pointer' : 'default',
+                    opacity: tradeOfferId ? 1 : 0.5,
+                    '&:hover': tradeOfferId ? {
+                      transform: 'scale(1.2)',
+                      transition: 'transform 0.2s'
+                    } : {},
+                  }}
+                >
+                  {' ✔️'}
+                </Typography>
+                
+                <Typography
+                  component="span"
+                  sx={{
+                    color: '#852654',
+                    fontSize: 13,
+                    fontFamily: '"Nobile", sans-serif',
+                    fontWeight: 400,
+                    wordWrap: 'break-word',
+                  }}
+                >
+                  {' / '}
+                </Typography>
+                
+                {/* Символ отклонения */}
+                <Typography
+                  component="span"
+                  onClick={handleRejectClick}
+                  sx={{
+                    color: '#EC2EA6',
+                    fontSize: 13,
+                    fontFamily: '"Nobile", sans-serif',
+                    fontWeight: 400,
+                    cursor: tradeOfferId ? 'pointer' : 'default',
+                    opacity: tradeOfferId ? 1 : 0.5,
+                    '&:hover': tradeOfferId ? {
+                      transform: 'scale(1.2)',
+                      transition: 'transform 0.2s'
+                    } : {},
+                  }}
+                >
+                  {'❌'}
+                </Typography>
+              </>
+            )}
           </Box>
         </Box>
       ) : (

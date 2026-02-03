@@ -1090,12 +1090,30 @@ app.get('/api/chats/:chatId/messages', async (req: any, res) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     const userId = decoded.userId;
     const chatId = req.params.chatId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    // Разбираем chatId: userId-otherUserId-tradeId или userId-otherUserId
+    const parts = chatId.split('-');
+    let userId1, userId2, tradeId;
+    
+    if (parts.length === 3) {
+      [userId1, userId2, tradeId] = parts;
+    } else if (parts.length === 2) {
+      [userId1, userId2] = parts;
+    }
+    
+    // Проверяем, что текущий пользователь участвует в чате
+    if (userId !== userId1 && userId !== userId2) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     
     const messages = await prisma.message.findMany({
       where: {
         OR: [
-          { senderId: userId, receiverId: chatId },
-          { senderId: chatId, receiverId: userId }
+          { senderId: userId1, receiverId: userId2, ...(tradeId && { tradeId }) },
+          { senderId: userId2, receiverId: userId1, ...(tradeId && { tradeId }) }
         ]
       },
       include: {
@@ -1106,11 +1124,15 @@ app.get('/api/chats/:chatId/messages', async (req: any, res) => {
         },
         trade: true
       },
-      orderBy: { createdAt: 'asc' },
-      take: 100
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
     });
     
-    res.json(messages);
+    // Переворачиваем порядок для правильного отображения (от старых к новым)
+    const sortedMessages = messages.reverse();
+    
+    res.json(sortedMessages);
   } catch (error: any) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: error.message });
