@@ -1,3 +1,4 @@
+// client/src/pages/ChitChat/components/MessageBubble.tsx
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { Message } from '../../../services/api';
@@ -61,6 +62,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         display: 'flex',
         mb: 2,
         maxWidth: '400px',
+        width: '100%',
       }}
     >
       {isTradeOffer ? (
@@ -186,6 +188,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             alignItems: 'center',
             gap: 1,
             display: 'flex',
+            boxShadow: isOwn ? 'none' : '0px 4px 10px rgba(35.40, 73.71, 135.35, 0.25)',
+            outline: isOwn ? 'none' : '1px #96F2F7 solid',
+            outlineOffset: '-1px',
+            width: '100%',
           }}
         >
           <Typography

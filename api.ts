@@ -153,38 +153,48 @@ export const profileAPI = {
 };
 
 export const chatAPI = {
-  getChats: () => api.get<Chat[]>('/chats'),
-  getMessages: (chatId: string) => api.get<Message[]>(`/chats/${chatId}/messages`),
+    getChats: () => api.get<Chat[]>('/chat'),
+  
+  getMessages: (chatId: string, page = 1, limit = 20) => 
+    api.get<Message[]>(`/chat/${chatId}/messages?page=${page}&limit=${limit}`),
+  
   sendMessage: (data: { 
     receiverId: string; 
     content: string; 
     tradeId?: string 
-  }) => api.post<Message>('/messages', data),
+  }) => api.post<{ success: boolean; message: Message }>('/chat/send', data),
+  
   sendTradeOffer: (data: { 
     tradeAdId: string; 
     message: string; 
     imageUrl: string 
   }) => api.post<{ tradeOffer: TradeOffer; message: Message }>('/trade-offers', data),
+  
   acceptTradeOffer: (offerId: string, accept: boolean) => 
-    api.post(`/trade-offers/${offerId}/accept`, { accept }),
+    api.post(`/chat/trade-offer/${offerId}/accept`, { accept }), // Исправлен путь
+    
   finishTrade: (tradeId: string, data: { rating?: number; comment?: string }) => 
     api.post(`/trades/${tradeId}/finish`, data),
+  
   submitComplaint: (data: { 
     reportedUserId: string; 
     reason: string; 
     details: string;
     chatId?: string;
-  }) => api.post('/complaints', data),
+  }) => api.post('/chat/complaint', data), // Исправлен путь
+  
   sendTradeOfferWithFile: (formData: FormData) => 
-    api.post<{ 
-      success: boolean; 
-      tradeOffer: TradeOffer; 
-      message: Message & { imageUrl?: string }
-    }>('/chat/trade-offer', formData, {
+    api.post<TradeOfferResponse>('/chat/trade-offer', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       }
     }),
+    
+  ensureChat: (tradeAdId: string, otherUserId: string) => 
+    api.get<{
+      chat: Chat;
+      existing: boolean;
+    }>(`/chat/ensure/${tradeAdId}/${otherUserId}`),
 };
 
 // Типы
@@ -234,6 +244,13 @@ export interface TradeOffer {
   message: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   createdAt: string;
+}
+
+export interface TradeOfferResponse {
+  success: boolean;
+  tradeOffer?: TradeOffer;
+  message?: Message & { imageUrl?: string };
+  error?: string; // Добавьте это поле
 }
 
 export default api;

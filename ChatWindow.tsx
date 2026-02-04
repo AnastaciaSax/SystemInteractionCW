@@ -1,3 +1,4 @@
+// client/src/pages/ChitChat/components/ChatWindow.tsx
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
@@ -7,13 +8,14 @@ import {
   Skeleton,
   Tooltip,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import TradeOfferModal from './TradeOfferModal';
 import ComplaintModal from './ComplaintModal';
 import FinishTradeModal from './FinishTradeModal';
 import MessageBubble from './MessageBubble';
-import { Chat, Message } from '../../../services/api';
+import { chatAPI, Chat, Message } from '../../../services/api';
 
 // Иконки из public/assets
 const ProfileIcon = ({ active }: { active?: boolean }) => (
@@ -47,25 +49,28 @@ const SubmitTradeIcon = ({ active }: { active?: boolean }) => (
     style={{ width: 35, height: 35 }}
   />
 );
+
 interface TradeAd {
   id: string;
   title: string;
   status: string;
   photo?: string;
-  userId?: string; // Добавляем userId
+  userId?: string;
 }
 
 interface ChatWindowProps {
   chat: Chat;
   messages: Message[];
   onSendMessage: (content: string) => void;
-  onSendTradeOffer: (file: File) => void; // Изменено: теперь только файл
+  onSendTradeOffer: (file: File) => void;
   onAcceptTrade: (offerId: string) => void;
   onRejectTrade: (offerId: string) => void;
   onSubmitComplaint: (reason: string, details: string) => void;
   onFinishTrade: (tradeId: string, rating: number, comment: string) => void;
   loadingMessages: boolean;
   currentUser: any;
+  hasMoreMessages?: boolean;
+  onLoadMoreMessages?: () => void;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -79,6 +84,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   onFinishTrade,
   loadingMessages,
   currentUser,
+  hasMoreMessages = false,
+  onLoadMoreMessages,
 }) => {
   const [message, setMessage] = useState('');
   const [showTradeOfferModal, setShowTradeOfferModal] = useState(false);
@@ -86,9 +93,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showFinishTradeModal, setShowFinishTradeModal] = useState(false);
   const [activeIcon, setActiveIcon] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [hasMoreMessages, setHasMoreMessages] = useState(true);
-const [currentPage, setCurrentPage] = useState(1);
-const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,15 +104,15 @@ const messagesContainerRef = useRef<HTMLDivElement>(null);
   }, [messages]);
 
   // Функция для получения текста статуса
-const getStatusText = (status: string | undefined) => {
-  switch (status) {
-    case 'ACTIVE': return 'Available';
-    case 'PENDING': return 'In Progress';
-    case 'COMPLETED': return 'Completed';
-    case 'CANCELLED': return 'Cancelled';
-    default: return 'Available';
-  }
-};
+  const getStatusText = (status: string | undefined) => {
+    switch (status) {
+      case 'ACTIVE': return 'Available';
+      case 'PENDING': return 'In Progress';
+      case 'COMPLETED': return 'Completed';
+      case 'CANCELLED': return 'Cancelled';
+      default: return 'Available';
+    }
+  };
 
   const handleSendMessage = () => {
     if (message.trim()) {
@@ -127,16 +132,14 @@ const getStatusText = (status: string | undefined) => {
     setShowTradeOfferModal(true);
   };
 
-const handleViewProfile = () => {
-  if (!chat?.otherUser?.id) {
-    console.error('No user ID available for profile view');
-    return;
-  }
-  
-  // Открываем профиль в новой вкладке
-  window.open(`/profile/${chat.otherUser.id}`, '_blank');
-};
-
+  const handleViewProfile = () => {
+    if (!chat?.otherUser?.id) {
+      console.error('No user ID available for profile view');
+      return;
+    }
+    
+    window.open(`/profile/${chat.otherUser.id}`, '_blank');
+  };
 
   const handleReport = () => {
     setShowComplaintModal(true);
@@ -163,66 +166,33 @@ const handleViewProfile = () => {
     }
   };
 
-  // Функция для отправки trade offer (адаптированная под новый пропс)
   const handleSendTradeOfferWrapper = async (file: File) => {
     onSendTradeOffer(file);
     setShowTradeOfferModal(false);
   };
 
-  // Функция для отправки жалобы
   const handleSubmitComplaintWrapper = async (reason: string, details: string) => {
     onSubmitComplaint(reason, details);
     setShowComplaintModal(false);
   };
 
-  // Функция для загрузки дополнительных сообщений
-const loadMoreMessages = useCallback(async () => {
-  if (!selectedChat || loadingMessages || !hasMoreMessages) return;
-  
-  try {
-    const nextPage = currentPage + 1;
-    const response = await chatAPI.getMessages(selectedChat.id, nextPage, 20);
-    const newMessages = response.data;
-    
-    if (newMessages.length === 0) {
-      setHasMoreMessages(false);
-      return;
-    }
-    
-    // Сохраняем текущую позицию прокрутки
-    const container = messagesContainerRef.current;
-    const scrollHeightBefore = container?.scrollHeight || 0;
-    const scrollTopBefore = container?.scrollTop || 0;
-    
-    // Добавляем сообщения в начало
-    setMessages(prev => [...newMessages.reverse(), ...prev]);
-    setCurrentPage(nextPage);
-    
-    // После обновления DOM восстанавливаем позицию прокрутки
-    setTimeout(() => {
-      if (container) {
-        const scrollHeightAfter = container.scrollHeight;
-        container.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
-      }
-    }, 0);
-  } catch (error) {
-    console.error('Error loading more messages:', error);
-  }
-}, [selectedChat, loadingMessages, hasMoreMessages, currentPage]);
-
-// Обработчик прокрутки
-const handleScroll = useCallback(() => {
+  // Обработчик прокрутки для бесконечной загрузки
+  const handleScroll = useCallback(() => {
   const container = messagesContainerRef.current;
-  if (!container || loadingMessages || !hasMoreMessages) return;
+  if (!container || loadingMessages || !hasMoreMessages || !onLoadMoreMessages) return;
   
-  // Если пользователь прокрутил близко к верху
-  if (container.scrollTop < 100) {
-    loadMoreMessages();
+  // Проверяем, достигли ли мы верха
+  const scrollTop = container.scrollTop;
+  const clientHeight = container.clientHeight;
+  const scrollHeight = container.scrollHeight;
+  
+  // Если прокрутили близко к верху (50px от верха)
+  if (scrollTop === 0) {
+    onLoadMoreMessages();
   }
-}, [loadMoreMessages, loadingMessages, hasMoreMessages]);
+}, [loadingMessages, hasMoreMessages, onLoadMoreMessages]);
 
-// Добавьте обработчик прокрутки
-useEffect(() => {
+  useEffect(() => {
   const container = messagesContainerRef.current;
   if (container) {
     container.addEventListener('scroll', handleScroll);
@@ -293,30 +263,30 @@ useEffect(() => {
           </Box>
           
           {/* Информация об объявлении */}
-        <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 0.5, display: 'flex' }}>
-  <Typography
-    sx={{
-      color: '#560D30',
-      fontSize: 15,
-      fontFamily: '"McLaren", cursive',
-      fontWeight: 400,
-      wordWrap: 'break-word',
-    }}
-  >
-    {chat.tradeAd?.title || 'Trade Item'}
-  </Typography>
-  <Typography
-    sx={{
-      color: '#852654',
-      fontSize: 11,
-      fontFamily: '"Nobile", sans-serif',
-      fontWeight: 400,
-      wordWrap: 'break-word',
-    }}
-  >
-    Status: {getStatusText(chat.tradeAd?.status)}
-  </Typography>
-</Box>
+          <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 0.5, display: 'flex' }}>
+            <Typography
+              sx={{
+                color: '#560D30',
+                fontSize: 15,
+                fontFamily: '"McLaren", cursive',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+              }}
+            >
+              {chat.tradeAd?.title || 'Trade Item'}
+            </Typography>
+            <Typography
+              sx={{
+                color: '#852654',
+                fontSize: 11,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                wordWrap: 'break-word',
+              }}
+            >
+              Status: {getStatusText(chat.tradeAd?.status)}
+            </Typography>
+          </Box>
         </Box>
         
         {/* Иконки действий */}
@@ -365,83 +335,83 @@ useEffect(() => {
       />
       
       {/* Окно сообщений */}
-<Box
-  ref={messagesContainerRef}
-  sx={{
-    alignSelf: 'stretch',
-    flex: '1 1 0',
-    padding: 2,
-    flexDirection: 'column',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 1,
-    display: 'flex',
-    overflow: 'auto',
-    position: 'relative',
-    '&::-webkit-scrollbar': {
-      width: '6px',
-    },
-    '&::-webkit-scrollbar-track': {
-      background: 'rgba(240, 94, 186, 0.1)',
-      borderRadius: '3px',
-    },
-    '&::-webkit-scrollbar-thumb': {
-      background: '#F05EBA',
-      borderRadius: '3px',
-    },
-  }}
->
-  {loadingMessages && currentPage === 1 ? (
-    // Skeleton для сообщений
-    <>
-      {[1, 2, 3].map(i => (
-        <Box
-          key={i}
-          sx={{
-            display: 'flex',
-            justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
-            width: '100%',
-            mb: 2,
-          }}
-        >
-          <Skeleton
-            variant="rectangular"
-            width={i === 3 ? '400px' : '300px'}
-            height={i === 3 ? 280 : 80}
-            sx={{ borderRadius: 2 }}
-          />
-        </Box>
-      ))}
-    </>
-  ) : (
-    // Сообщения
-    <>
-      {/* Индикатор загрузки */}
-      {loadingMessages && (
-        <Box sx={{ alignSelf: 'center', py: 2 }}>
-          <CircularProgress size={24} sx={{ color: '#EC2EA6' }} />
-        </Box>
-      )}
-      
-      {/* Сообщения */}
-      {messages.map((msg) => (
-        <MessageBubble
-          key={msg.id}
-          message={msg}
-          isOwn={msg.senderId === currentUser.id}
-          formatTime={(date) => new Date(date).toLocaleTimeString([], { 
-            hour: 'numeric', 
-            minute: '2-digit',
-            hour12: true 
-          }).toUpperCase()}
-          onAcceptTrade={handleAcceptTradeOffer}
-          onRejectTrade={handleRejectTradeOffer}
-        />
-      ))}
-      <div ref={messagesEndRef} />
-    </>
-  )}
-</Box>
+      <Box
+        ref={messagesContainerRef}
+        sx={{
+          alignSelf: 'stretch',
+          flex: '1 1 0',
+          padding: 2,
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 1,
+          display: 'flex',
+          overflow: 'auto',
+          position: 'relative',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(240, 94, 186, 0.1)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#F05EBA',
+            borderRadius: '3px',
+          },
+        }}
+      >
+        {loadingMessages && messages.length === 0 ? (
+          // Skeleton для сообщений при первой загрузке
+          <>
+            {[1, 2, 3].map(i => (
+              <Box
+                key={i}
+                sx={{
+                  display: 'flex',
+                  justifyContent: i % 2 === 0 ? 'flex-end' : 'flex-start',
+                  width: '100%',
+                  mb: 2,
+                }}
+              >
+                <Skeleton
+                  variant="rectangular"
+                  width={i === 3 ? '400px' : '300px'}
+                  height={i === 3 ? 280 : 80}
+                  sx={{ borderRadius: 2 }}
+                />
+              </Box>
+            ))}
+          </>
+        ) : (
+          // Сообщения
+          <>
+            {/* Индикатор загрузки дополнительных сообщений */}
+            {loadingMessages && messages.length > 0 && (
+              <Box sx={{ alignSelf: 'center', py: 2 }}>
+                <CircularProgress size={24} sx={{ color: '#EC2EA6' }} />
+              </Box>
+            )}
+            
+            {/* Сообщения */}
+            {messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isOwn={msg.senderId === currentUser.id}
+                formatTime={(date) => new Date(date).toLocaleTimeString([], { 
+                  hour: 'numeric', 
+                  minute: '2-digit',
+                  hour12: true 
+                }).toUpperCase()}
+                onAcceptTrade={handleAcceptTradeOffer}
+                onRejectTrade={handleRejectTradeOffer}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </Box>
       
       {/* Поле ввода сообщения */}
       <Box
@@ -499,24 +469,26 @@ useEffect(() => {
           <Box sx={{ height: 56, justifyContent: 'center', alignItems: 'center', gap: 1, display: 'flex' }}>
             {/* Иконка отправки */}
             <Tooltip title="Send Message">
-              <IconButton
-                onClick={handleSendMessage}
-                disabled={!message.trim()}
-                sx={{
-                  color: message.trim() ? 'white' : '#560D30',
-                  background: message.trim() 
-                    ? 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)'
-                    : 'rgba(240, 94, 186, 0.1)',
-                  '&:hover': {
-                    background: message.trim()
-                      ? 'linear-gradient(90deg, #F05EBA 0%, #EC2EA6 100%)'
-                      : 'rgba(240, 94, 186, 0.2)',
-                  },
-                }}
-              >
-                <SendIcon />
-              </IconButton>
-            </Tooltip>
+  <span> {/* Добавьте эту обертку */}
+    <IconButton
+      onClick={handleSendMessage}
+      disabled={!message.trim()}
+      sx={{
+        color: message.trim() ? 'white' : '#560D30',
+        background: message.trim() 
+          ? 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)'
+          : 'rgba(240, 94, 186, 0.1)',
+        '&:hover': {
+          background: message.trim()
+            ? 'linear-gradient(90deg, #F05EBA 0%, #EC2EA6 100%)'
+            : 'rgba(240, 94, 186, 0.2)',
+        },
+      }}
+    >
+      <SendIcon />
+    </IconButton>
+  </span>
+</Tooltip>
             
             {/* Иконка прикрепления файла - ТОЛЬКО если это не наше объявление */}
             {chat.tradeAd && chat.tradeAd.userId && chat.tradeAd.userId !== currentUser.id && (

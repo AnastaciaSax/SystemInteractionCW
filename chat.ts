@@ -229,6 +229,8 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
     const { accept } = req.body;
     const userId = req.user.userId;
     
+    console.log('Accepting trade offer:', { offerId, accept, userId }); // Добавьте логи
+    
     // Получаем trade offer
     const tradeOffer = await prisma.tradeOffer.findUnique({
       where: { id: offerId },
@@ -371,6 +373,98 @@ router.post('/complaint', authenticate, async (req, res) => {
   }
 });
 
+router.get('/:chatId/messages', authenticate, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
+
+    const userId = req.user.userId;
+
+    console.log('Fetching messages for chatId:', chatId); // Добавьте для отладки
+    
+    // Разбираем chatId: userId-otherUserId-tradeId или userId-otherUserId
+    const parts = chatId.split('-');
+    if (parts.length < 2) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid chat ID format. Expected: userId-otherUserId or userId-otherUserId-tradeId' 
+      });
+    }
+
+    let userId1, userId2, tradeId;
+    
+    if (parts.length === 3) {
+      [userId1, userId2, tradeId] = parts;
+    } else if (parts.length === 2) {
+      [userId1, userId2] = parts;
+      tradeId = null;
+    } else {
+      // Если частей больше 3 (например, когда tradeId содержит дефисы)
+      userId1 = parts[0];
+      userId2 = parts[1];
+      tradeId = parts.slice(2).join('-'); // Собираем оставшиеся части как tradeId
+    }
+
+    console.log('Parsed chat parts:', { userId1, userId2, tradeId }); // Добавьте для отладки
+
+    // Проверяем, что текущий пользователь участвует в чате
+    if (userId !== userId1 && userId !== userId2) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Access denied. You are not part of this chat.' 
+      });
+    }
+
+    // Строим условие WHERE
+    const whereClause: any = {
+      OR: [
+        { senderId: userId1, receiverId: userId2 },
+        { senderId: userId2, receiverId: userId1 }
+      ]
+    };
+
+    // Добавляем tradeId в условие, если он есть
+    if (tradeId && tradeId !== 'undefined') {
+      whereClause.tradeId = tradeId;
+    }
+
+    const messages = await prisma.message.findMany({
+      where: whereClause,
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        },
+        receiver: {
+          include: {
+            profile: true
+          }
+        },
+        trade: true
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    });
+
+    console.log(`Found ${messages.length} messages for chat ${chatId}`); // Добавьте для отладки
+
+    // Переворачиваем порядок для правильного отображения (от старых к новым)
+    const sortedMessages = messages.reverse();
+
+    res.json(sortedMessages);
+  } catch (error: any) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to fetch messages' 
+    });
+  }
+});
+
 router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => {
   try {
     const { tradeAdId, otherUserId } = req.params;
@@ -476,6 +570,53 @@ router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => 
     res.status(500).json({ 
       success: false,
       error: error.message || 'Failed to ensure chat' 
+    });
+  }
+});
+
+router.post('/send', authenticate, async (req, res) => {
+  try {
+    const { receiverId, content, tradeId } = req.body;
+    const senderId = req.user.userId;
+    
+    if (!receiverId || !content) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Receiver ID and content are required' 
+      });
+    }
+    
+    const message = await prisma.message.create({
+      data: {
+        senderId,
+        receiverId,
+        content,
+        tradeId,
+        isRead: false
+      },
+      include: {
+        sender: {
+          include: {
+            profile: true
+          }
+        },
+        receiver: {
+          include: {
+            profile: true
+          }
+        }
+      }
+    });
+    
+    res.json({
+      success: true,
+      message
+    });
+  } catch (error: any) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to send message' 
     });
   }
 });

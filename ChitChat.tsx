@@ -25,6 +25,8 @@ const ChitChat: React.FC = () => {
   const [messages, setMessages] = useState<APIMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
   const [notification, setNotification] = useState<{
     open: boolean;
     message: string;
@@ -39,63 +41,63 @@ const ChitChat: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-useEffect(() => {
-  // Проверяем, есть ли pending trade offer из страницы Trade
-  const pendingTradeOfferStr = localStorage.getItem('pendingTradeOffer');
-  if (pendingTradeOfferStr && chats.length > 0) {
-    const tradeAd = JSON.parse(pendingTradeOfferStr);
-    
-    // Формируем id чата так же, как на сервере
-    const sortedIds = [currentUser.id, tradeAd.userId].sort();
-    const chatId = tradeAd.id 
-      ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
-      : `${sortedIds[0]}-${sortedIds[1]}`;
-    
-    // Ищем чат с этим id
-    const existingChat = chats.find(chat => chat.id === chatId);
-    
-    if (existingChat) {
-      setSelectedChat(existingChat);
-    } else {
-      // Создаем новый чат в состоянии
-      const newChat: Chat = {
-        id: chatId,
-        otherUser: {
-          id: tradeAd.userId,
-          username: tradeAd.user?.username || 'Trade Partner',
-          profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
-          region: tradeAd.user?.region
-        },
-        tradeAd: {
-          id: tradeAd.id,
-          title: tradeAd.title,
-          status: 'ACTIVE',
-          photo: tradeAd.photo,
-          userId: tradeAd.userId
-        },
-        unreadCount: 0,
-      };
+  useEffect(() => {
+    // Проверяем, есть ли pending trade offer из страницы Trade
+    const pendingTradeOfferStr = localStorage.getItem('pendingTradeOffer');
+    if (pendingTradeOfferStr && chats.length > 0) {
+      const tradeAd = JSON.parse(pendingTradeOfferStr);
       
-      setChats(prev => [newChat, ...prev]);
-      setSelectedChat(newChat);
+      // Формируем id чата так же, как на сервере
+      const sortedIds = [currentUser.id, tradeAd.userId].sort();
+      const chatId = tradeAd.id 
+        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
+        : `${sortedIds[0]}-${sortedIds[1]}`;
+      
+      // Ищем чат с этим id
+      const existingChat = chats.find(chat => chat.id === chatId);
+      
+      if (existingChat) {
+        setSelectedChat(existingChat);
+      } else {
+        // Создаем новый чат в состоянии
+        const newChat: Chat = {
+          id: chatId,
+          otherUser: {
+            id: tradeAd.userId,
+            username: tradeAd.user?.username || 'Trade Partner',
+            profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
+            region: tradeAd.user?.region
+          },
+          tradeAd: {
+            id: tradeAd.id,
+            title: tradeAd.title,
+            status: 'ACTIVE',
+            photo: tradeAd.photo,
+            userId: tradeAd.userId
+          },
+          unreadCount: 0,
+        };
+        
+        setChats(prev => [newChat, ...prev]);
+        setSelectedChat(newChat);
+      }
+      
+      // Очищаем pending trade offer
+      localStorage.removeItem('pendingTradeOffer');
     }
-    
-    // Очищаем pending trade offer
-    localStorage.removeItem('pendingTradeOffer');
-  }
-}, [chats, currentUser.id]);
+  }, [chats, currentUser.id]);
 
   useEffect(() => {
     fetchChats();
   }, []);
 
-useEffect(() => {
-  if (selectedChat) {
-    fetchMessages(selectedChat.id, 1);
-    setCurrentPage(1);
-    setHasMoreMessages(true);
-  }
-}, [selectedChat]);
+  useEffect(() => {
+    if (selectedChat) {
+      fetchMessages(selectedChat.id, 1);
+      setCurrentPage(1);
+      setHasMoreMessages(true);
+    }
+  }, [selectedChat]);
 
   const fetchChats = async () => {
     setLoading(true);
@@ -115,57 +117,79 @@ useEffect(() => {
   };
 
   const fetchMessages = async (chatId: string, page = 1) => {
-  setLoadingMessages(true);
-  try {
-    const response = await chatAPI.getMessages(chatId, page, 20);
-    if (page === 1) {
-      setMessages(response.data);
-    } else {
-      setMessages(prev => [...response.data, ...prev]);
-    }
-    
-    // Проверяем, есть ли еще сообщения
-    if (response.data.length < 20) {
-      setHasMoreMessages(false);
-    }
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    showNotification('Failed to load messages', 'error');
-  } finally {
-    setLoadingMessages(false);
-  }
-};
-
-  const handleSendMessage = async (content: string) => {
-    if (!selectedChat) return;
-    
+    setLoadingMessages(true);
     try {
-      const response = await chatAPI.sendMessage({
-        receiverId: selectedChat.otherUser.id,
-        content,
-        tradeId: selectedChat.tradeAd?.id
-      });
+      const response = await chatAPI.getMessages(chatId, page, 20);
+      if (page === 1) {
+        setMessages(response.data);
+      } else {
+        setMessages(prev => [...response.data, ...prev]);
+      }
       
-      setMessages(prev => [...prev, response.data]);
-      
-      setChats(prev => prev.map(chat => 
-        chat.id === selectedChat.id 
-          ? { 
-              ...chat, 
-              lastMessage: response.data,
-              unreadCount: 0,
-            }
-          : chat
-      ));
-      
-      showNotification('Message sent successfully', 'success');
+      // Проверяем, есть ли еще сообщения
+      if (response.data.length < 20) {
+        setHasMoreMessages(false);
+      }
     } catch (error) {
-      console.error('Error sending message:', error);
-      showNotification('Failed to send message', 'error');
+      console.error('Error fetching messages:', error);
+      showNotification('Failed to load messages', 'error');
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
-  const handleSendTradeOffer = async (file: File) => {  // Убрали textMessage
+  // Функция для загрузки дополнительных сообщений
+  const loadMoreMessages = async () => {
+    if (!selectedChat || loadingMessages || !hasMoreMessages) return;
+    
+    const nextPage = currentPage + 1;
+    try {
+      const response = await chatAPI.getMessages(selectedChat.id, nextPage, 20);
+      if (response.data.length > 0) {
+        setMessages(prev => [...prev, ...response.data]);
+        setCurrentPage(nextPage);
+      }
+      if (response.data.length < 20) {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('Error loading more messages:', error);
+      showNotification('Failed to load more messages', 'error');
+    }
+  };
+
+  const handleSendMessage = async (content: string) => {
+  if (!selectedChat) return;
+  
+  try {
+    const response = await chatAPI.sendMessage({
+      receiverId: selectedChat.otherUser.id,
+      content,
+      tradeId: selectedChat.tradeAd?.id
+    });
+    
+    // Извлекаем сообщение из ответа
+    const newMessage = response.data.message;
+    setMessages(prev => [...prev, newMessage]);
+    
+    setChats(prev => prev.map(chat => 
+      chat.id === selectedChat.id 
+        ? { 
+            ...chat, 
+            lastMessage: newMessage,
+            unreadCount: 0,
+          }
+        : chat
+    ));
+    
+    showNotification('Message sent successfully', 'success');
+  } catch (error) {
+    console.error('Error sending message:', error);
+    showNotification('Failed to send message', 'error');
+  }
+};
+
+const handleSendTradeOffer = async (file: File) => {
   if (!selectedChat || !selectedChat.tradeAd) {
     showNotification('No trade ad selected for offer', 'error');
     return;
@@ -174,24 +198,19 @@ useEffect(() => {
   try {
     const formData = new FormData();
     formData.append('tradeAdId', selectedChat.tradeAd.id);
-    formData.append('image', file);  // Только файл
+    formData.append('image', file);
     
-    const token = localStorage.getItem('token');
-    const response = await fetch('/api/chat/trade-offer', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
+    const response = await chatAPI.sendTradeOfferWithFile(formData);
     
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error);
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to send trade offer');
     }
     
-    setMessages(prev => [...prev, result.message]);
+    // Извлекаем сообщение из ответа
+    if (response.data.message) {
+      setMessages(prev => [...prev, response.data.message!]);
+    }
+    
     showNotification('Trade offer sent successfully', 'success');
   } catch (error: any) {
     console.error('Error sending trade offer:', error);
@@ -371,23 +390,28 @@ useEffect(() => {
         imageUrl="/assets/banner-chit-chat.png"
       />
       
-      <Container
-        sx={{
-          maxWidth: '1280px !important',
-          py: { xs: 2, md: 4 },
-          flex: 1,
-        }}
-      >
-        {mode === 'chat' ? (
-          <Box sx={{ 
-            width: '100%', 
-            height: '720px',
-            overflow: 'hidden',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            gap: 2,
-            display: 'inline-flex'
-          }}>
+<Container
+  sx={{
+    maxWidth: '1280px !important',
+    py: { xs: 2, md: 4 },
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '600px',
+  }}
+>
+  {mode === 'chat' ? (
+    <Box sx={{ 
+      width: '100%', 
+      height: '720px',
+      minHeight: '600px',
+      overflow: 'hidden',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      gap: 2,
+      display: 'flex',
+      flex: 1,
+    }}>
             <VerticalToggleButtons mode={mode} onModeChange={setMode} />
             
             <ChatList
@@ -398,18 +422,20 @@ useEffect(() => {
             />
             
 {selectedChat ? (
-  <ChatWindow
-    chat={selectedChat}
-    messages={messages}
-    onSendMessage={handleSendMessage}
-    onSendTradeOffer={handleSendTradeOffer}
-    onAcceptTrade={handleAcceptTrade}
-    onRejectTrade={handleRejectTrade}
-    onSubmitComplaint={handleSubmitComplaint}
-    onFinishTrade={handleFinishTrade}
-    loadingMessages={loadingMessages}
-    currentUser={currentUser}
-  />
+<ChatWindow
+  chat={selectedChat}
+  messages={messages}
+  onSendMessage={handleSendMessage}
+  onSendTradeOffer={handleSendTradeOffer}
+  onAcceptTrade={handleAcceptTrade}
+  onRejectTrade={handleRejectTrade}
+  onSubmitComplaint={handleSubmitComplaint}
+  onFinishTrade={handleFinishTrade}
+  loadingMessages={loadingMessages}
+  currentUser={currentUser}
+  hasMoreMessages={hasMoreMessages}
+  onLoadMoreMessages={loadMoreMessages}
+/>
 ) : (
   <Box
     sx={{
