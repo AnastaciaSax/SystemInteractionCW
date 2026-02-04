@@ -229,7 +229,7 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
     const { accept } = req.body;
     const userId = req.user.userId;
     
-    console.log('Accepting trade offer:', { offerId, accept, userId }); // Добавьте логи
+    console.log('Accepting trade offer:', { offerId, accept, userId });
     
     // Получаем trade offer
     const tradeOffer = await prisma.tradeOffer.findUnique({
@@ -270,7 +270,7 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
       data: { status: newStatus }
     });
     
-    // Создаем уведомление
+    // Создаем уведомление для отправителя предложения
     const notificationMessage = await prisma.message.create({
       data: {
         senderId: userId,
@@ -289,6 +289,25 @@ router.post('/trade-offer/:offerId/accept', authenticate, async (req, res) => {
         }
       }
     });
+    
+    // Обновляем существующее сообщение с trade offer, чтобы добавить статус
+    const existingMessage = await prisma.message.findFirst({
+      where: {
+        content: { contains: offerId }
+      }
+    });
+    
+    if (existingMessage) {
+      // Обновляем content, добавляя статус
+      const updatedContent = existingMessage.content.includes('|ACCEPTED') || existingMessage.content.includes('|REJECTED')
+        ? existingMessage.content
+        : `${existingMessage.content}|${accept ? 'ACCEPTED' : 'REJECTED'}`;
+      
+      await prisma.message.update({
+        where: { id: existingMessage.id },
+        data: { content: updatedContent }
+      });
+    }
     
     res.json({
       success: true,

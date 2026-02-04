@@ -15,8 +15,10 @@ import VerticalToggleButtons from './components/VerticalToggleButtons';
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
 import Notification from '../../components/ui/Notification';
-import { chatAPI, Chat, Message as APIMessage } from '../../services/api';
+import { chatAPI, Chat, Message as APIMessage, TradeOfferResponse } from '../../services/api';
 import './ChitChat.css';
+
+// Удалите импорт AxiosResponse отсюда и используйте тип из axios напрямую
 
 const ChitChat: React.FC = () => {
   const [mode, setMode] = useState<'chat' | 'forum'>('chat');
@@ -159,70 +161,99 @@ const ChitChat: React.FC = () => {
   };
 
   const handleSendMessage = async (content: string) => {
-  if (!selectedChat) return;
-  
-  try {
-    const response = await chatAPI.sendMessage({
-      receiverId: selectedChat.otherUser.id,
-      content,
-      tradeId: selectedChat.tradeAd?.id
-    });
+    if (!selectedChat) return;
     
-    // Извлекаем сообщение из ответа
-    const newMessage = response.data.message;
-    setMessages(prev => [...prev, newMessage]);
-    
-    setChats(prev => prev.map(chat => 
-      chat.id === selectedChat.id 
-        ? { 
-            ...chat, 
-            lastMessage: newMessage,
-            unreadCount: 0,
-          }
-        : chat
-    ));
-    
-    showNotification('Message sent successfully', 'success');
-  } catch (error) {
-    console.error('Error sending message:', error);
-    showNotification('Failed to send message', 'error');
-  }
-};
+    try {
+      const response = await chatAPI.sendMessage({
+        receiverId: selectedChat.otherUser.id,
+        content,
+        tradeId: selectedChat.tradeAd?.id
+      });
+      
+      // Извлекаем сообщение из ответа
+      const newMessage = response.data.message;
+      setMessages(prev => [...prev, newMessage]);
+      
+      setChats(prev => prev.map(chat => 
+        chat.id === selectedChat.id 
+          ? { 
+              ...chat, 
+              lastMessage: newMessage,
+              unreadCount: 0,
+            }
+          : chat
+      ));
+      
+      showNotification('Message sent successfully', 'success');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      showNotification('Failed to send message', 'error');
+    }
+  };
 
-const handleSendTradeOffer = async (file: File) => {
-  if (!selectedChat || !selectedChat.tradeAd) {
-    showNotification('No trade ad selected for offer', 'error');
-    return;
-  }
-  
-  try {
-    const formData = new FormData();
-    formData.append('tradeAdId', selectedChat.tradeAd.id);
-    formData.append('image', file);
-    
-    const response = await chatAPI.sendTradeOfferWithFile(formData);
-    
-    if (!response.data.success) {
-      throw new Error(response.data.error || 'Failed to send trade offer');
+  const handleSendTradeOffer = async (file: File) => {
+    if (!selectedChat || !selectedChat.tradeAd) {
+      showNotification('No trade ad selected for offer', 'error');
+      return;
     }
     
-    // Извлекаем сообщение из ответа
-    if (response.data.message) {
-      setMessages(prev => [...prev, response.data.message!]);
+    try {
+      const formData = new FormData();
+      formData.append('tradeAdId', selectedChat.tradeAd.id);
+      formData.append('image', file);
+      
+      const response = await chatAPI.sendTradeOfferWithFile(formData);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to send trade offer');
+      }
+      
+      // Извлекаем сообщение из ответа
+      if (response.data.message) {
+        setMessages(prev => [...prev, response.data.message!]);
+      }
+      
+      showNotification('Trade offer sent successfully', 'success');
+    } catch (error: any) {
+      console.error('Error sending trade offer:', error);
+      showNotification(error.message || 'Failed to send trade offer', 'error');
     }
-    
-    showNotification('Trade offer sent successfully', 'success');
-  } catch (error: any) {
-    console.error('Error sending trade offer:', error);
-    showNotification(error.message || 'Failed to send trade offer', 'error');
-  }
-};
+  };
 
   const handleAcceptTrade = async (offerId: string) => {
     try {
-      await chatAPI.acceptTradeOffer(offerId, true);
+      const response = await chatAPI.acceptTradeOffer(offerId, true);
+      
+      // Обновляем сообщения с уведомлением о принятии
+      if (response.data.message) {
+        setMessages(prev => [...prev, response.data.message!]);
+      }
+      
+      // Обновляем статус чата
+      if (selectedChat && selectedChat.tradeAd) {
+        selectedChat.tradeAd.status = 'PENDING';
+        setChats(prev => prev.map(chat => 
+          chat.id === selectedChat.id 
+            ? { 
+                ...chat, 
+                tradeAd: { ...chat.tradeAd!, status: 'PENDING' }
+              } 
+            : chat
+        ));
+      }
+      
+      // Обновляем сообщение с trade offer, чтобы показать, что оно принято
+      setMessages(prev => prev.map(msg => {
+        if (msg.content.includes(`|${offerId}|`)) {
+          return { ...msg, content: msg.content.replace('|PENDING', '|ACCEPTED') };
+        }
+        if (msg.content.includes(`|${offerId}`) && !msg.content.includes('|ACCEPTED') && !msg.content.includes('|REJECTED')) {
+          return { ...msg, content: `${msg.content}|ACCEPTED` };
+        }
+        return msg;
+      }));
+      
       showNotification('Trade accepted!', 'success');
-      fetchChats();
     } catch (error) {
       console.error('Error accepting trade:', error);
       showNotification('Failed to accept trade', 'error');
@@ -232,6 +263,18 @@ const handleSendTradeOffer = async (file: File) => {
   const handleRejectTrade = async (offerId: string) => {
     try {
       await chatAPI.acceptTradeOffer(offerId, false);
+      
+      // Обновляем сообщение с trade offer, чтобы показать, что оно отклонено
+      setMessages(prev => prev.map(msg => {
+        if (msg.content.includes(`|${offerId}|`)) {
+          return { ...msg, content: msg.content.replace('|PENDING', '|REJECTED') };
+        }
+        if (msg.content.includes(`|${offerId}`) && !msg.content.includes('|ACCEPTED') && !msg.content.includes('|REJECTED')) {
+          return { ...msg, content: `${msg.content}|REJECTED` };
+        }
+        return msg;
+      }));
+      
       showNotification('Trade offer rejected', 'info');
     } catch (error) {
       console.error('Error rejecting trade:', error);
@@ -390,28 +433,28 @@ const handleSendTradeOffer = async (file: File) => {
         imageUrl="/assets/banner-chit-chat.png"
       />
       
-<Container
-  sx={{
-    maxWidth: '1280px !important',
-    py: { xs: 2, md: 4 },
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '600px',
-  }}
->
-  {mode === 'chat' ? (
-    <Box sx={{ 
-      width: '100%', 
-      height: '720px',
-      minHeight: '600px',
-      overflow: 'hidden',
-      justifyContent: 'center',
-      alignItems: 'flex-start',
-      gap: 2,
-      display: 'flex',
-      flex: 1,
-    }}>
+      <Container
+        sx={{
+          maxWidth: '1280px !important',
+          py: { xs: 2, md: 4 },
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '600px',
+        }}
+      >
+        {mode === 'chat' ? (
+          <Box sx={{ 
+            width: '100%', 
+            height: '720px',
+            minHeight: '600px',
+            overflow: 'hidden',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            gap: 2,
+            display: 'flex',
+            flex: 1,
+          }}>
             <VerticalToggleButtons mode={mode} onModeChange={setMode} />
             
             <ChatList
@@ -421,47 +464,47 @@ const handleSendTradeOffer = async (file: File) => {
               loading={loading}
             />
             
-{selectedChat ? (
-<ChatWindow
-  chat={selectedChat}
-  messages={messages}
-  onSendMessage={handleSendMessage}
-  onSendTradeOffer={handleSendTradeOffer}
-  onAcceptTrade={handleAcceptTrade}
-  onRejectTrade={handleRejectTrade}
-  onSubmitComplaint={handleSubmitComplaint}
-  onFinishTrade={handleFinishTrade}
-  loadingMessages={loadingMessages}
-  currentUser={currentUser}
-  hasMoreMessages={hasMoreMessages}
-  onLoadMoreMessages={loadMoreMessages}
-/>
-) : (
-  <Box
-    sx={{
-      flex: '1 1 0',
-      alignSelf: 'stretch',
-      padding: 3,
-      background: 'white',
-      borderRadius: 2,
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      textAlign: 'center',
-    }}
-  >
-    <Typography
-      sx={{
-        color: '#852654',
-        fontSize: '18px',
-        fontFamily: '"Nobile", sans-serif',
-        fontStyle: 'italic',
-      }}
-    >
-      Select a chat to start messaging! 💬
-    </Typography>
-  </Box>
-)}
+            {selectedChat ? (
+              <ChatWindow
+                chat={selectedChat}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onSendTradeOffer={handleSendTradeOffer}
+                onAcceptTrade={handleAcceptTrade}
+                onRejectTrade={handleRejectTrade}
+                onSubmitComplaint={handleSubmitComplaint}
+                onFinishTrade={handleFinishTrade}
+                loadingMessages={loadingMessages}
+                currentUser={currentUser}
+                hasMoreMessages={hasMoreMessages}
+                onLoadMoreMessages={loadMoreMessages}
+              />
+            ) : (
+              <Box
+                sx={{
+                  flex: '1 1 0',
+                  alignSelf: 'stretch',
+                  padding: 3,
+                  background: 'white',
+                  borderRadius: 2,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: '#852654',
+                    fontSize: '18px',
+                    fontFamily: '"Nobile", sans-serif',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  Select a chat to start messaging! 💬
+                </Typography>
+              </Box>
+            )}
           </Box>
         ) : (
           <Box

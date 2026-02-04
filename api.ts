@@ -170,8 +170,8 @@ export const chatAPI = {
     imageUrl: string 
   }) => api.post<{ tradeOffer: TradeOffer; message: Message }>('/trade-offers', data),
   
-  acceptTradeOffer: (offerId: string, accept: boolean) => 
-    api.post(`/chat/trade-offer/${offerId}/accept`, { accept }), // Исправлен путь
+acceptTradeOffer: (offerId: string, accept: boolean) => 
+  api.post<TradeOfferResponse>(`/chat/trade-offer/${offerId}/accept`, { accept }),
     
   finishTrade: (tradeId: string, data: { rating?: number; comment?: string }) => 
     api.post(`/trades/${tradeId}/finish`, data),

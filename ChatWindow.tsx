@@ -9,6 +9,7 @@ import {
   Tooltip,
   Divider,
   CircularProgress,
+  Button,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import TradeOfferModal from './TradeOfferModal';
@@ -92,16 +93,44 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [showFinishTradeModal, setShowFinishTradeModal] = useState(false);
   const [activeIcon, setActiveIcon] = useState<string | null>(null);
+  const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  // Прокрутка к последнему сообщению
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Прокручиваем вниз только при новом сообщении, если пользователь не прокручивал вверх
+    const container = messagesContainerRef.current;
+    if (container) {
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      if (isAtBottom) {
+        scrollToBottom();
+      }
+    }
   }, [messages]);
+
+  // Обработчик прокрутки для бесконечной загрузки
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container || loadingMessages || !hasMoreMessages || !onLoadMoreMessages) return;
+    
+    // Проверяем, достигли ли мы верха (50px от верха)
+    if (container.scrollTop === 0) {
+      onLoadMoreMessages();
+    }
+  }, [loadingMessages, hasMoreMessages, onLoadMoreMessages]);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   // Функция для получения текста статуса
   const getStatusText = (status: string | undefined) => {
@@ -149,15 +178,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setShowFinishTradeModal(true);
   };
 
-  const handleAcceptTradeOffer = (offerId: string) => {
-    onAcceptTrade(offerId);
+  const handleAcceptTradeOffer = async (offerId: string) => {
+    if (processingOfferId) return; // Предотвращаем повторные нажатия
+    
+    setProcessingOfferId(offerId);
+    try {
+      await onAcceptTrade(offerId);
+      // После принятия, обновляем статус в локальном состоянии
+      if (chat.tradeAd) {
+        chat.tradeAd.status = 'PENDING';
+      }
+    } finally {
+      setProcessingOfferId(null);
+    }
   };
 
-  const handleRejectTradeOffer = (offerId: string) => {
-    onRejectTrade(offerId);
+  const handleRejectTradeOffer = async (offerId: string) => {
+    if (processingOfferId) return;
+    
+    setProcessingOfferId(offerId);
+    try {
+      await onRejectTrade(offerId);
+    } finally {
+      setProcessingOfferId(null);
+    }
   };
 
-  const isTradeReadyToFinish = chat.tradeAd?.status === 'ACCEPTED';
+  const isTradeReadyToFinish = chat.tradeAd?.status === 'PENDING' || 
+                               chat.tradeAd?.status === 'ACCEPTED';
 
   const handleFinishTradeSubmit = (rating: number, comment: string) => {
     if (chat.tradeAd?.id) {
@@ -175,30 +223,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     onSubmitComplaint(reason, details);
     setShowComplaintModal(false);
   };
-
-  // Обработчик прокрутки для бесконечной загрузки
-  const handleScroll = useCallback(() => {
-  const container = messagesContainerRef.current;
-  if (!container || loadingMessages || !hasMoreMessages || !onLoadMoreMessages) return;
-  
-  // Проверяем, достигли ли мы верха
-  const scrollTop = container.scrollTop;
-  const clientHeight = container.clientHeight;
-  const scrollHeight = container.scrollHeight;
-  
-  // Если прокрутили близко к верху (50px от верха)
-  if (scrollTop === 0) {
-    onLoadMoreMessages();
-  }
-}, [loadingMessages, hasMoreMessages, onLoadMoreMessages]);
-
-  useEffect(() => {
-  const container = messagesContainerRef.current;
-  if (container) {
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }
-}, [handleScroll]);
 
   return (
     <Box
@@ -342,12 +366,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           flex: '1 1 0',
           padding: 2,
           flexDirection: 'column',
-          justifyContent: 'flex-end',
+          justifyContent: 'flex-start',
           alignItems: 'center',
           gap: 1,
           display: 'flex',
-          overflow: 'auto',
-          position: 'relative',
+          overflowY: 'auto',
+          maxHeight: '400px',
           '&::-webkit-scrollbar': {
             width: '6px',
           },
@@ -406,12 +430,42 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 }).toUpperCase()}
                 onAcceptTrade={handleAcceptTradeOffer}
                 onRejectTrade={handleRejectTradeOffer}
+                processingOfferId={processingOfferId}
               />
             ))}
             <div ref={messagesEndRef} />
           </>
         )}
       </Box>
+      
+      {/* Кнопка Finish Trade - появляется после accept для обоих участников */}
+      {isTradeReadyToFinish && (
+        <Box sx={{ alignSelf: 'center', my: 1 }}>
+          <Button
+            variant="contained"
+            onClick={handleFinishTrade}
+            sx={{
+              background: 'linear-gradient(90deg, #4CAF50 0%, #45a049 100%)',
+              color: 'white',
+              borderRadius: 2,
+              px: 3,
+              py: 1,
+              '&:hover': {
+                background: 'linear-gradient(90deg, #45a049 0%, #4CAF50 100%)',
+              },
+            }}
+            startIcon={
+              <img 
+                src="/assets/submit-finished-trade-default.svg" 
+                alt="Finish Trade" 
+                style={{ width: 20, height: 20 }}
+              />
+            }
+          >
+            Submit Finished Trade
+          </Button>
+        </Box>
+      )}
       
       {/* Поле ввода сообщения */}
       <Box
@@ -469,26 +523,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           <Box sx={{ height: 56, justifyContent: 'center', alignItems: 'center', gap: 1, display: 'flex' }}>
             {/* Иконка отправки */}
             <Tooltip title="Send Message">
-  <span> {/* Добавьте эту обертку */}
-    <IconButton
-      onClick={handleSendMessage}
-      disabled={!message.trim()}
-      sx={{
-        color: message.trim() ? 'white' : '#560D30',
-        background: message.trim() 
-          ? 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)'
-          : 'rgba(240, 94, 186, 0.1)',
-        '&:hover': {
-          background: message.trim()
-            ? 'linear-gradient(90deg, #F05EBA 0%, #EC2EA6 100%)'
-            : 'rgba(240, 94, 186, 0.2)',
-        },
-      }}
-    >
-      <SendIcon />
-    </IconButton>
-  </span>
-</Tooltip>
+              <IconButton
+                onClick={handleSendMessage}
+                disabled={!message.trim()}
+                sx={{
+                  color: message.trim() ? 'white' : '#560D30',
+                  background: message.trim() 
+                    ? 'linear-gradient(90deg, #EC2EA6 0%, #F05EBA 100%)'
+                    : 'rgba(240, 94, 186, 0.1)',
+                  '&:hover': {
+                    background: message.trim()
+                      ? 'linear-gradient(90deg, #F05EBA 0%, #EC2EA6 100%)'
+                      : 'rgba(240, 94, 186, 0.2)',
+                  },
+                }}
+              >
+                <SendIcon />
+              </IconButton>
+            </Tooltip>
             
             {/* Иконка прикрепления файла - ТОЛЬКО если это не наше объявление */}
             {chat.tradeAd && chat.tradeAd.userId && chat.tradeAd.userId !== currentUser.id && (
@@ -500,20 +552,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   sx={{ p: 0 }}
                 >
                   <AttachIcon active={activeIcon === 'attach'} />
-                </IconButton>
-              </Tooltip>
-            )}
-            
-            {/* Иконка завершения сделки */}
-            {isTradeReadyToFinish && (
-              <Tooltip title="Finish Trade">
-                <IconButton
-                  onClick={handleFinishTrade}
-                  onMouseEnter={() => setActiveIcon('finish')}
-                  onMouseLeave={() => setActiveIcon(null)}
-                  sx={{ p: 0 }}
-                >
-                  <SubmitTradeIcon active={activeIcon === 'finish'} />
                 </IconButton>
               </Tooltip>
             )}

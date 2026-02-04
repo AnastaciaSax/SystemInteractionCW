@@ -9,6 +9,7 @@ interface MessageBubbleProps {
   formatTime: (dateString: string) => string;
   onAcceptTrade?: (offerId: string) => void;
   onRejectTrade?: (offerId: string) => void;
+  processingOfferId?: string | null;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
@@ -16,7 +17,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isOwn, 
   formatTime,
   onAcceptTrade,
-  onRejectTrade
+  onRejectTrade,
+  processingOfferId
 }) => {
   // Определяем, является ли сообщение trade offer по маркеру в content
   const isTradeOffer = message.content.startsWith('[TRADE_OFFER]');
@@ -24,21 +26,25 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Извлекаем imageUrl и tradeOfferId из content
   let imageUrl = '';
   let tradeOfferId = '';
+  let isOfferAccepted = false;
   
   if (isTradeOffer) {
-    // Формат: [TRADE_OFFER]imageUrl|tradeOfferId
+    // Формат: [TRADE_OFFER]imageUrl|tradeOfferId|status
     const contentWithoutMarker = message.content.replace('[TRADE_OFFER]', '');
     const parts = contentWithoutMarker.split('|');
     imageUrl = parts[0] || '';
     if (parts.length > 1) {
       tradeOfferId = parts[1];
     }
+    if (parts.length > 2) {
+      isOfferAccepted = parts[2] === 'ACCEPTED';
+    }
   }
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAcceptTrade && !isOwn && tradeOfferId) {
+    if (onAcceptTrade && !isOwn && tradeOfferId && !processingOfferId && !isOfferAccepted) {
       onAcceptTrade(tradeOfferId);
     }
   };
@@ -46,10 +52,13 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleRejectClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onRejectTrade && !isOwn && tradeOfferId) {
+    if (onRejectTrade && !isOwn && tradeOfferId && !processingOfferId) {
       onRejectTrade(tradeOfferId);
     }
   };
+
+  // Проверяем, обрабатывается ли это предложение сейчас
+  const isProcessing = tradeOfferId === processingOfferId;
 
   return (
     <Box
@@ -95,6 +104,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             alt="Trade Offer"
           />
           
+          {/* Сообщение о принятии предложения */}
+          {isOfferAccepted && (
+            <Typography
+              sx={{
+                color: '#4CAF50',
+                fontSize: 14,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                mt: 1,
+              }}
+            >
+              ✓ Trade offer accepted!
+            </Typography>
+          )}
+          
           {/* Текст с кликабельными символами */}
           <Box sx={{ 
             alignSelf: 'stretch', 
@@ -117,23 +142,23 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               Trade Offer
             </Typography>
             
-            {/* Символ принятия - только для получателя */}
-            {!isOwn && (
+            {/* Символ принятия - только для получателя и если предложение еще не принято */}
+            {!isOwn && !isOfferAccepted && (
               <>
                 <Typography
                   component="span"
-                  onClick={handleAcceptClick}
+                  onClick={isProcessing ? undefined : handleAcceptClick}
                   sx={{
-                    color: '#EC2EA6',
+                    color: isProcessing ? '#CCC' : '#EC2EA6',
                     fontSize: 13,
                     fontFamily: '"Nobile", sans-serif',
                     fontWeight: 400,
-                    cursor: tradeOfferId ? 'pointer' : 'default',
-                    opacity: tradeOfferId ? 1 : 0.5,
-                    '&:hover': tradeOfferId ? {
+                    cursor: isProcessing ? 'default' : 'pointer',
+                    opacity: isProcessing ? 0.5 : 1,
+                    '&:hover': isProcessing ? {} : {
                       transform: 'scale(1.2)',
                       transition: 'transform 0.2s'
-                    } : {},
+                    },
                   }}
                 >
                   {' ✔️'}
@@ -155,18 +180,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {/* Символ отклонения */}
                 <Typography
                   component="span"
-                  onClick={handleRejectClick}
+                  onClick={isProcessing ? undefined : handleRejectClick}
                   sx={{
-                    color: '#EC2EA6',
+                    color: isProcessing ? '#CCC' : '#EC2EA6',
                     fontSize: 13,
                     fontFamily: '"Nobile", sans-serif',
                     fontWeight: 400,
-                    cursor: tradeOfferId ? 'pointer' : 'default',
-                    opacity: tradeOfferId ? 1 : 0.5,
-                    '&:hover': tradeOfferId ? {
+                    cursor: isProcessing ? 'default' : 'pointer',
+                    opacity: isProcessing ? 0.5 : 1,
+                    '&:hover': isProcessing ? {} : {
                       transform: 'scale(1.2)',
                       transition: 'transform 0.2s'
-                    } : {},
+                    },
                   }}
                 >
                   {'❌'}
@@ -176,12 +201,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </Box>
         </Box>
       ) : (
-        // Обычное сообщение
+        // Обычное сообщение или системное уведомление
         <Box
           sx={{
             maxWidth: 400,
             padding: 2,
-            background: isOwn ? 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)' : 'white',
+            background: message.senderId === 'system' 
+              ? 'linear-gradient(90deg, #E3F2FD 0%, #BBDEFB 100%)'
+              : isOwn 
+                ? 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)' 
+                : 'white',
             borderRadius: 2,
             flexDirection: 'column',
             justifyContent: 'center',
@@ -197,10 +226,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           <Typography
             sx={{
               width: '100%',
-              color: isOwn ? '#560D30' : '#11073A',
+              color: message.senderId === 'system' ? '#1976D2' : (isOwn ? '#560D30' : '#11073A'),
               fontSize: 13,
               fontFamily: '"Nobile", sans-serif',
-              fontWeight: 400,
+              fontWeight: message.senderId === 'system' ? 600 : 400,
               wordWrap: 'break-word',
             }}
           >
