@@ -10,6 +10,7 @@ interface MessageBubbleProps {
   onAcceptTrade?: (offerId: string) => void;
   onRejectTrade?: (offerId: string) => void;
   processingOfferId?: string | null;
+  chatStatus?: string;
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ 
@@ -18,7 +19,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   formatTime,
   onAcceptTrade,
   onRejectTrade,
-  processingOfferId
+  processingOfferId,
+  chatStatus
 }) => {
   // Определяем, является ли сообщение trade offer по маркеру в content
   const isTradeOffer = message.content.startsWith('[TRADE_OFFER]');
@@ -26,7 +28,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Извлекаем imageUrl и tradeOfferId из content
   let imageUrl = '';
   let tradeOfferId = '';
-  let isOfferAccepted = false;
+  let offerStatus = '';
   
   if (isTradeOffer) {
     // Формат: [TRADE_OFFER]imageUrl|tradeOfferId|status
@@ -37,14 +39,18 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
       tradeOfferId = parts[1];
     }
     if (parts.length > 2) {
-      isOfferAccepted = parts[2] === 'ACCEPTED';
+      offerStatus = parts[2];
     }
   }
+
+  // Если в сообщении нет статуса, смотрим на статус чата
+  const isOfferAccepted = offerStatus === 'ACCEPTED' || chatStatus === 'ACCEPTED';
+  const isOfferRejected = offerStatus === 'REJECTED' || chatStatus === 'ACTIVE';
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAcceptTrade && !isOwn && tradeOfferId && !processingOfferId && !isOfferAccepted) {
+    if (onAcceptTrade && !isOwn && tradeOfferId && !processingOfferId && !isOfferAccepted && !isOfferRejected) {
       onAcceptTrade(tradeOfferId);
     }
   };
@@ -52,13 +58,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const handleRejectClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onRejectTrade && !isOwn && tradeOfferId && !processingOfferId) {
+    if (onRejectTrade && !isOwn && tradeOfferId && !processingOfferId && !isOfferAccepted && !isOfferRejected) {
       onRejectTrade(tradeOfferId);
     }
   };
 
   // Проверяем, обрабатывается ли это предложение сейчас
   const isProcessing = tradeOfferId === processingOfferId;
+
+  // Показывать ли кнопки ✔️/❌?
+  // Только если: это trade offer, НЕ наше сообщение, предложение не принято и не отклонено
+  const showTradeButtons = isTradeOffer && 
+                          !isOwn && 
+                          !isOfferAccepted && 
+                          !isOfferRejected &&
+                          chatStatus !== 'ACCEPTED';
 
   return (
     <Box
@@ -104,7 +118,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
             alt="Trade Offer"
           />
           
-          {/* Сообщение о принятии предложения */}
+          {/* Сообщение о статусе предложения */}
           {isOfferAccepted && (
             <Typography
               sx={{
@@ -117,6 +131,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               }}
             >
               ✓ Trade offer accepted!
+            </Typography>
+          )}
+          
+          {isOfferRejected && (
+            <Typography
+              sx={{
+                color: '#FF6B6B',
+                fontSize: 14,
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                mt: 1,
+              }}
+            >
+              ✗ Trade offer rejected
             </Typography>
           )}
           
@@ -142,8 +171,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               Trade Offer
             </Typography>
             
-            {/* Символ принятия - только для получателя и если предложение еще не принято */}
-            {!isOwn && !isOfferAccepted && (
+            {/* Кнопки принятия/отклонения */}
+            {showTradeButtons && (
               <>
                 <Typography
                   component="span"

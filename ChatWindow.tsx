@@ -9,7 +9,6 @@ import {
   Tooltip,
   Divider,
   CircularProgress,
-  Button,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import TradeOfferModal from './TradeOfferModal';
@@ -139,6 +138,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       case 'PENDING': return 'In Progress';
       case 'COMPLETED': return 'Completed';
       case 'CANCELLED': return 'Cancelled';
+      case 'ACCEPTED': return 'Accepted';
       default: return 'Available';
     }
   };
@@ -186,7 +186,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       await onAcceptTrade(offerId);
       // После принятия, обновляем статус в локальном состоянии
       if (chat.tradeAd) {
-        chat.tradeAd.status = 'PENDING';
+        chat.tradeAd.status = 'ACCEPTED';
       }
     } finally {
       setProcessingOfferId(null);
@@ -199,13 +199,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     setProcessingOfferId(offerId);
     try {
       await onRejectTrade(offerId);
+      // После отклонения, обновляем статус в локальном состоянии
+      if (chat.tradeAd) {
+        chat.tradeAd.status = 'ACTIVE';
+      }
     } finally {
       setProcessingOfferId(null);
     }
   };
 
-  const isTradeReadyToFinish = chat.tradeAd?.status === 'PENDING' || 
-                               chat.tradeAd?.status === 'ACCEPTED';
+  // Только если статус ACCEPTED для обоих пользователей
+  const isTradeReadyToFinish = chat.tradeAd?.status === 'ACCEPTED';
+
+  // Может ли текущий пользователь прикреплять trade offer
+  // Только если: есть tradeAd, пользователь НЕ владелец объявления, статус ACTIVE (нет ожидающих предложений)
+  const canAttachTradeOffer = chat.tradeAd && 
+                              chat.tradeAd.userId && 
+                              chat.tradeAd.userId !== currentUser.id && 
+                              chat.tradeAd.status === 'ACTIVE';
 
   const handleFinishTradeSubmit = (rating: number, comment: string) => {
     if (chat.tradeAd?.id) {
@@ -217,6 +228,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleSendTradeOfferWrapper = async (file: File) => {
     onSendTradeOffer(file);
     setShowTradeOfferModal(false);
+    // После отправки предложения статус меняется на PENDING
+    if (chat.tradeAd) {
+      chat.tradeAd.status = 'PENDING';
+    }
   };
 
   const handleSubmitComplaintWrapper = async (reason: string, details: string) => {
@@ -431,41 +446,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                 onAcceptTrade={handleAcceptTradeOffer}
                 onRejectTrade={handleRejectTradeOffer}
                 processingOfferId={processingOfferId}
+                chatStatus={chat.tradeAd?.status}
               />
             ))}
             <div ref={messagesEndRef} />
           </>
         )}
       </Box>
-      
-      {/* Кнопка Finish Trade - появляется после accept для обоих участников */}
-      {isTradeReadyToFinish && (
-        <Box sx={{ alignSelf: 'center', my: 1 }}>
-          <Button
-            variant="contained"
-            onClick={handleFinishTrade}
-            sx={{
-              background: 'linear-gradient(90deg, #4CAF50 0%, #45a049 100%)',
-              color: 'white',
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              '&:hover': {
-                background: 'linear-gradient(90deg, #45a049 0%, #4CAF50 100%)',
-              },
-            }}
-            startIcon={
-              <img 
-                src="/assets/submit-finished-trade-default.svg" 
-                alt="Finish Trade" 
-                style={{ width: 20, height: 20 }}
-              />
-            }
-          >
-            Submit Finished Trade
-          </Button>
-        </Box>
-      )}
       
       {/* Поле ввода сообщения */}
       <Box
@@ -542,8 +529,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               </IconButton>
             </Tooltip>
             
-            {/* Иконка прикрепления файла - ТОЛЬКО если это не наше объявление */}
-            {chat.tradeAd && chat.tradeAd.userId && chat.tradeAd.userId !== currentUser.id && (
+            {/* Иконка прикрепления файла - только если можно */}
+            {canAttachTradeOffer && (
               <Tooltip title="Attach Trade Offer">
                 <IconButton
                   onClick={handleAttachTradeOffer}
@@ -552,6 +539,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   sx={{ p: 0 }}
                 >
                   <AttachIcon active={activeIcon === 'attach'} />
+                </IconButton>
+              </Tooltip>
+            )}
+            
+            {/* Иконка завершения сделки - только если статус ACCEPTED */}
+            {isTradeReadyToFinish && (
+              <Tooltip title="Submit Finished Trade">
+                <IconButton
+                  onClick={handleFinishTrade}
+                  onMouseEnter={() => setActiveIcon('finish')}
+                  onMouseLeave={() => setActiveIcon(null)}
+                  sx={{ p: 0 }}
+                >
+                  <SubmitTradeIcon active={activeIcon === 'finish'} />
                 </IconButton>
               </Tooltip>
             )}
