@@ -73,10 +73,18 @@ const uploadAvatars = multer({
 app.use(cors({
   origin: 'http://localhost:3000',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
 }));
 app.use(express.json());
-app.use(fileUpload({
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+
+app.use('/api/chat', fileUpload({
+  limits: { fileSize: 5 * 1024 * 1024 },
   abortOnLimit: true,
   createParentPath: true
 }));
@@ -329,90 +337,61 @@ app.get('/api/trade-ads/my', async (req: any, res) => {
 });
 
 // Создать новое объявление
-app.post('/api/trade-ads', uploadTradeAds.single('photo'), async (req: any, res) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const userId = decoded.userId;
-    
-    const { title, description, condition, location, figurineId } = req.body;
-    
-    if (!title || !description || !condition || !location || !figurineId) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'Photo is required' });
-    }
-    
-    const figurine = await prisma.figurine.findUnique({
-      where: { id: figurineId }
-    });
-    
-    if (!figurine) {
-      return res.status(404).json({ error: 'Figurine not found' });
-    }
-    
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { region: true }
-    });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    if (!user.region) {
-      return res.status(400).json({ 
-        error: 'Please set your region in profile settings before creating trade ads' 
-      });
-    }
-    
-    const ad = await prisma.tradeAd.create({
-      data: {
-        title,
-        description,
-        condition,
-        location,
-        photo: `/uploads/trade-ads/${req.file.filename}`,
-        userId,
-        figurineId,
-        status: 'ACTIVE'
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            region: true,
-            profile: {
-              select: {
-                avatar: true,
-                rating: true
-              }
-            }
-          }
-        },
-        figurine: {
-          select: {
-            name: true,
-            series: true
-          }
-        }
+app.post('/api/trade-ads', 
+  uploadTradeAds.single('photo'),
+  async (req: any, res: any) => {  // Просто используем 'any'
+    try {
+      console.log('📥 Received trade ad creation request');
+      
+      const token = req.headers.authorization?.split(' ')[1];
+      
+      if (!token) {
+        return res.status(401).json({ error: 'Not authenticated' });
       }
-    });
-    
-    res.json(ad);
-  } catch (error: any) {
-    console.error('Error creating trade ad:', error);
-    res.status(500).json({ error: error.message });
+      
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      const userId = decoded.userId;
+      
+      console.log('📋 Request body:', req.body);
+      console.log('📁 Uploaded file:', req.file);
+      
+      const { title, description, condition, location, figurineId } = req.body;
+      
+      // Базовая проверка
+      if (!title || !description || !condition || !location || !figurineId) {
+        console.log('❌ Missing required fields');
+        return res.status(400).json({ error: 'All fields are required' });
+      }
+      
+      if (!req.file) {
+        console.log('❌ No photo uploaded');
+        return res.status(400).json({ error: 'Photo is required' });
+      }
+      
+      // Создаём объявление
+      const ad = await prisma.tradeAd.create({
+        data: {
+          title,
+          description,
+          condition,
+          location,
+          photo: `/uploads/trade-ads/${req.file.filename}`,
+          userId,
+          figurineId,
+          status: 'ACTIVE'
+        }
+      });
+      
+      console.log('✅ Trade ad created:', ad.id);
+      
+      res.json(ad);
+      
+    } catch (error: any) {
+      console.error('❌ Error creating trade ad:', error);
+      res.status(500).json({ error: error.message || 'Server error' });
+    }
   }
-});
+);
 
 // Обновить объявление
 app.put('/api/trade-ads/:id', uploadTradeAds.single('photo'), async (req: any, res) => {

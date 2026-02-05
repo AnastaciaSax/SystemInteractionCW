@@ -96,17 +96,34 @@ export const tradeAPI = {
     sort?: string;
   }) => api.get<{ ads: TradeAdWithDetails[]; total: number; page: number; pages: number }>('/trade-ads', { params }),
   
-  createAd: (data: FormData) => 
-    api.post<TradeAd>('/trade-ads', data, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+createAd: (data: FormData): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const token = localStorage.getItem('token');
+      
+      fetch('/api/trade-ads', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Не добавляем Content-Type для FormData
+        },
+        body: data
+      })
+      .then(async res => {
+        const result = await res.json();
+        if (res.ok) {
+          resolve({ data: result }); // Обертываем в { data: ... } как axios
+        } else {
+          reject(result);
+        }
+      })
+      .catch(error => reject(error));
+    });
+  },
   
   getAdById: (id: string) => api.get<TradeAdWithDetails>(`/trade-ads/${id}`),
   
   updateAd: (id: string, data: FormData) => 
-    api.put<TradeAd>(`/trade-ads/${id}`, data, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    }),
+    api.put<TradeAd>(`/trade-ads/${id}`, data),
   
   deleteAd: (id: string) => api.delete<{ success: boolean }>(`/trade-ads/${id}`),
   

@@ -29,6 +29,7 @@ const TradeFilters: React.FC<TradeFiltersProps> = ({
 }) => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [key, setKey] = useState(0); // Для сброса формы
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value };
@@ -41,14 +42,25 @@ const handleCreateAd = async (data: any) => {
   setLoading(true);
   try {
     await onCreateAd(data);
-    setCreateModalOpen(false);
+    // Не закрываем модалку здесь - она закроется через 2 секунды в Trade.tsx
+    // Ждем 2 секунды, затем закрываем модалку
+    setTimeout(() => {
+      setCreateModalOpen(false);
+      setKey(prev => prev + 1);
+    }, 1000);
   } catch (error) {
     console.error('Create ad error:', error);
-    alert('Failed to create ad. Please try again.');
+    // Модалка останется открытой при ошибке
   } finally {
     setLoading(false);
   }
 };
+
+  const handleCloseModal = () => {
+    setCreateModalOpen(false);
+    // Сбрасываем форму при закрытии без создания
+    setTimeout(() => setKey(prev => prev + 1), 300);
+  };
 
   const seriesOptions = ['G2', 'G3', 'G4', 'G5', 'G6', 'G7'];
   const conditionOptions = [
@@ -67,7 +79,7 @@ const handleCreateAd = async (data: any) => {
     { value: 'OTHER', label: 'Other' },
   ];
 
-  return (
+   return (
     <>
       <Box
         sx={{
@@ -203,10 +215,10 @@ const handleCreateAd = async (data: any) => {
         </Box>
       </Box>
 
-      {/* Модальное окно создания объявления */}
+       {/* Модальное окно создания объявления */}
       <Modal
         open={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
+        onClose={handleCloseModal}
         title="Create TradeAd"
         maxWidth="md"
         blurBackground
@@ -214,8 +226,9 @@ const handleCreateAd = async (data: any) => {
       >
         <Box sx={{ padding: 4 }}>
           <TradeAdForm
+            key={key} // Ключ для сброса формы
             onSubmit={handleCreateAd}
-            onCancel={() => setCreateModalOpen(false)}
+            onCancel={handleCloseModal}
             loading={loading}
             submitText="Create TradeAd"
           />

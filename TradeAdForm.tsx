@@ -1,3 +1,4 @@
+// client/src/components/forms/TradeAdForm.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -131,25 +132,48 @@ const TradeAdForm: React.FC<TradeAdFormProps> = ({
     e.preventDefault();
     
     const formDataToSend = new FormData();
+    
+    // Просто добавляем поля без сложной логики
     formDataToSend.append('title', formData.title);
     formDataToSend.append('description', formData.description);
     formDataToSend.append('condition', formData.condition);
     formDataToSend.append('location', formData.location);
     formDataToSend.append('figurineId', formData.figurineId);
     
-    // При создании объявления фото обязательно
-    // При редактировании - опционально
-    if (photoFile) {
-      formDataToSend.append('photo', photoFile);
-    } else if (!isEditMode && !hasPhoto) {
-      // В режиме создания, если фото не загружено, не отправляем форму
+    // Простая проверка фото
+    if (!isEditMode && !photoFile) {
+      alert('Please upload a photo for your trade ad');
       return;
     }
     
-    await onSubmit(formDataToSend);
+    if (photoFile) {
+      formDataToSend.append('photo', photoFile);
+    }
+    
+    console.log('Submitting form...');
+    
+    try {
+      await onSubmit(formDataToSend);
+      // Сбросить форму только после успешной отправки
+      if (!isEditMode) {
+        setFormData({
+          title: '',
+          description: '',
+          condition: 'MINT',
+          series: 'G2',
+          photo: '',
+          figurineId: '',
+          location: '',
+        });
+        setPhotoFile(null);
+        setHasPhoto(false);
+      }
+    } catch (error: any) {
+      console.error('Form submission error:', error);
+    }
   };
 
-  return (
+    return (
     <Box
       component="form"
       onSubmit={handleSubmit}

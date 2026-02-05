@@ -139,20 +139,29 @@ const Trade: React.FC = () => {
     setPagination(prev => ({ ...prev, page }));
   };
 
-  const handleCreateAd = async (data: FormData) => {
-    try {
-      const response = await tradeAPI.createAd(data);
-      if (response.data) {
-        fetchAds();
-        showNotification('Trade ad created successfully! 🎉', 'success');
-        return Promise.resolve();
+const handleCreateAd = async (data: FormData) => {
+  try {
+    const response = await tradeAPI.createAd(data);
+    if (response.data) {
+      // Если режим "ALL", сбрасываем на первую страницу
+      if (filters.view === 'ALL') {
+        setPagination(prev => ({ ...prev, page: 1 }));
       }
-    } catch (error) {
-      console.error('Error creating ad:', error);
-      showNotification('Failed to create trade ad. Please try again.', 'error');
-      return Promise.reject(error);
+      // Обновляем список объявлений
+      await fetchAds();
+      showNotification('Trade ad created successfully! 🎉', 'success');
+      
+      return Promise.resolve(); // Просто успех
+    } else {
+      throw new Error('Failed to create trade ad');
     }
-  };
+  } catch (error: any) {
+    console.error('Error creating ad:', error);
+    const errorMessage = error.error?.message || error.message || 'Failed to create trade ad. Please try again.';
+    showNotification(errorMessage, 'error');
+    return Promise.reject(error);
+  }
+};
 
   const handleDeleteAd = async (id: string) => {
     try {
