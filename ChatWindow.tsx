@@ -1,5 +1,5 @@
 // client/src/pages/ChitChat/components/ChatWindow.tsx
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -131,6 +131,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   }, [handleScroll]);
 
+  // Добавим useEffect для парсинга статуса при загрузке сообщений
+useEffect(() => {
+  if (messages.length > 0 && chat?.tradeAd?.id) {
+    const checkTradeOfferStatus = () => {
+      // Ищем все сообщения с трейд-офферами в этом чате
+      const tradeOfferMessages = messages.filter(msg => 
+        msg.content.startsWith('[TRADE_OFFER]')
+      );
+      
+      // Проверяем, есть ли принятый трейд-оффер
+      const acceptedOffer = tradeOfferMessages.find(msg => 
+        msg.content.includes('|ACCEPTED')
+      );
+      
+      if (acceptedOffer && chat.tradeAd && chat.tradeAd.status !== 'ACCEPTED') {
+        // Обновляем статус чата (только локально)
+        // Родительский компонент уже должен был обновить статус
+        // Это дополнительная проверка на случай, если статус не синхронизирован
+      }
+    };
+    
+    checkTradeOfferStatus();
+  }
+}, [messages, chat]);
+
   // Функция для получения текста статуса
   const getStatusText = (status: string | undefined) => {
     switch (status) {
@@ -208,8 +233,20 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
 
-  // Только если статус ACCEPTED для обоих пользователей
-  const isTradeReadyToFinish = chat.tradeAd?.status === 'ACCEPTED';
+const isTradeReadyToFinish = useMemo(() => {
+  // Проверяем статус в tradeAd
+  if (chat.tradeAd?.status === 'ACCEPTED') {
+    return true;
+  }
+  
+  // Также проверяем сообщения на наличие принятого трейд-оффера
+  const hasAcceptedTradeOffer = messages.some(msg => 
+    msg.content.startsWith('[TRADE_OFFER]') && 
+    msg.content.includes('|ACCEPTED')
+  );
+  
+  return hasAcceptedTradeOffer;
+}, [chat.tradeAd?.status, messages]);
 
   // Может ли текущий пользователь прикреплять trade offer
   // Только если: есть tradeAd, пользователь НЕ владелец объявления, статус ACTIVE (нет ожидающих предложений)
@@ -257,112 +294,125 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       }}
     >
       {/* Верхняя панель с информацией об объявлении */}
+<Box
+  sx={{
+    alignSelf: 'stretch',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    gap: 1,
+    display: 'inline-flex',
+    px: 2,
+    py: 1,
+  }}
+>
+  {chat.tradeAd ? (
+    <Box
+      sx={{
+        paddingLeft: 0.5,
+        paddingRight: 0.5,
+        paddingTop: 0.2,
+        paddingBottom: 0.2,
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        gap: 1,
+        display: 'flex',
+        borderRadius: 1,
+      }}
+    >
+      {/* Аватар объявления */}
       <Box
         sx={{
-          alignSelf: 'stretch',
-          justifyContent: 'flex-start',
+          width: 56,
+          height: 56,
+          padding: 1,
+          overflow: 'hidden',
+          justifyContent: 'center',
           alignItems: 'center',
           gap: 1,
-          display: 'inline-flex',
-          px: 2,
-          py: 1,
+          display: 'flex',
         }}
       >
-        <Box
-          sx={{
-            paddingLeft: 0.5,
-            paddingRight: 0.5,
-            paddingTop: 0.2,
-            paddingBottom: 0.2,
-            justifyContent: 'flex-start',
-            alignItems: 'center',
-            gap: 1,
-            display: 'flex',
-            borderRadius: 1,
-          }}
-        >
-          {/* Аватар объявления */}
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              padding: 1,
-              overflow: 'hidden',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: 1,
-              display: 'flex',
-            }}
-          >
-            <img
-              style={{ width: 40, height: 40, borderRadius: '50%' }}
-              src={chat.tradeAd?.photo || 'https://placehold.co/40x40'}
-              alt={chat.tradeAd?.title || 'Trade Item'}
-            />
-          </Box>
-          
-          {/* Информация об объявлении */}
-          <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 0.5, display: 'flex' }}>
-            <Typography
-              sx={{
-                color: '#560D30',
-                fontSize: 15,
-                fontFamily: '"McLaren", cursive',
-                fontWeight: 400,
-                wordWrap: 'break-word',
-              }}
-            >
-              {chat.tradeAd?.title || 'Trade Item'}
-            </Typography>
-            <Typography
-              sx={{
-                color: '#852654',
-                fontSize: 11,
-                fontFamily: '"Nobile", sans-serif',
-                fontWeight: 400,
-                wordWrap: 'break-word',
-              }}
-            >
-              Status: {getStatusText(chat.tradeAd?.status)}
-            </Typography>
-          </Box>
-        </Box>
-        
-        {/* Иконки действий */}
-        <Box
-          sx={{
-            flex: '1 1 0',
-            paddingLeft: 2,
-            paddingRight: 2,
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            gap: 2.5,
-            display: 'flex',
-          }}
-        >
-          <Tooltip title="View Profile">
-            <IconButton
-              onClick={handleViewProfile}
-              onMouseEnter={() => setActiveIcon('profile')}
-              onMouseLeave={() => setActiveIcon(null)}
-              sx={{ p: 0 }}
-            >
-              <ProfileIcon active={activeIcon === 'profile'} />
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip title="Report User">
-            <IconButton
-              onClick={handleReport}
-              onMouseEnter={() => setActiveIcon('complaint')}
-              onMouseLeave={() => setActiveIcon(null)}
-              sx={{ p: 0 }}
-            >
-              <ComplaintIcon active={activeIcon === 'complaint'} />
-            </IconButton>
-          </Tooltip>
-        </Box>
+        <img
+          style={{ width: 40, height: 40, borderRadius: '50%' }}
+          src={chat.tradeAd.photo || 'https://placehold.co/40x40'}
+          alt={chat.tradeAd.title || 'Trade Item'}
+        />
       </Box>
+      
+      {/* Информация об объявлении */}
+      <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 0.5, display: 'flex' }}>
+        <Typography
+          sx={{
+            color: '#560D30',
+            fontSize: 15,
+            fontFamily: '"McLaren", cursive',
+            fontWeight: 400,
+            wordWrap: 'break-word',
+          }}
+        >
+          {chat.tradeAd.title || 'Trade Item'}
+        </Typography>
+        <Typography
+          sx={{
+            color: '#852654',
+            fontSize: 11,
+            fontFamily: '"Nobile", sans-serif',
+            fontWeight: 400,
+            wordWrap: 'break-word',
+          }}
+        >
+          Status: {getStatusText(chat.tradeAd.status)}
+        </Typography>
+      </Box>
+    </Box>
+  ) : (
+    <Typography
+      sx={{
+        color: '#852654',
+        fontSize: 14,
+        fontFamily: '"Nobile", sans-serif',
+        fontStyle: 'italic',
+      }}
+    >
+      No trade ad associated with this chat
+    </Typography>
+  )}
+  
+  {/* Иконки действий */}
+  <Box
+    sx={{
+      flex: '1 1 0',
+      paddingLeft: 2,
+      paddingRight: 2,
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      gap: 2.5,
+      display: 'flex',
+    }}
+  >
+    <Tooltip title="View Profile">
+      <IconButton
+        onClick={handleViewProfile}
+        onMouseEnter={() => setActiveIcon('profile')}
+        onMouseLeave={() => setActiveIcon(null)}
+        sx={{ p: 0 }}
+      >
+        <ProfileIcon active={activeIcon === 'profile'} />
+      </IconButton>
+    </Tooltip>
+    
+    <Tooltip title="Report User">
+      <IconButton
+        onClick={handleReport}
+        onMouseEnter={() => setActiveIcon('complaint')}
+        onMouseLeave={() => setActiveIcon(null)}
+        sx={{ p: 0 }}
+      >
+        <ComplaintIcon active={activeIcon === 'complaint'} />
+      </IconButton>
+    </Tooltip>
+  </Box>
+</Box>
       
       {/* Разделительная линия */}
       <Divider

@@ -102,43 +102,120 @@ const ChitChat: React.FC = () => {
   }, [selectedChat]);
 
   const fetchChats = async () => {
-    setLoading(true);
-    try {
-      const response = await chatAPI.getChats();
-      setChats(response.data);
-      
-      if (response.data.length > 0 && !selectedChat) {
-        setSelectedChat(response.data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching chats:', error);
-      showNotification('Failed to load chats', 'error');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await chatAPI.getChats();
+    
+    // Парсим все сообщения в чатах, чтобы определить статусы трейд-офферов
+    const chatsWithParsedStatus = await Promise.all(
+      response.data.map(async (chat: Chat) => {
+        if (chat.tradeAd?.id) {
+          try {
+            // Загружаем сообщения для этого чата
+            const messagesResponse = await chatAPI.getMessages(chat.id, 1, 50);
+            const messages = messagesResponse.data;
+            
+            // Ищем сообщения с трейд-оффером
+            const tradeOfferMessages = messages.filter(msg => 
+              msg.content.startsWith('[TRADE_OFFER]')
+            );
+            
+            // Проверяем, есть ли принятый трейд-оффер
+            const acceptedOffer = tradeOfferMessages.find(msg => 
+              msg.content.includes('|ACCEPTED')
+            );
+            
+            if (acceptedOffer) {
+              return {
+                ...chat,
+                tradeAd: {
+                  ...chat.tradeAd,
+                  status: 'ACCEPTED'
+                }
+              };
+            }
+          } catch (error) {
+            console.error('Error parsing trade offer status:', error);
+          }
+        }
+        return chat;
+      })
+    );
+    
+    setChats(chatsWithParsedStatus);
+    
+    if (chatsWithParsedStatus.length > 0 && !selectedChat) {
+      setSelectedChat(chatsWithParsedStatus[0]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching chats:', error);
+    showNotification('Failed to load chats', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchMessages = async (chatId: string, page = 1) => {
-    setLoadingMessages(true);
-    try {
-      const response = await chatAPI.getMessages(chatId, page, 20);
-      if (page === 1) {
-        setMessages(response.data);
-      } else {
-        setMessages(prev => [...response.data, ...prev]);
+  setLoadingMessages(true);
+  try {
+    const response = await chatAPI.getMessages(chatId, page, 20);
+    
+    // Парсим сообщения для определения статусов трейд-офферов
+    const parsedMessages = response.data.map((msg: APIMessage) => { // Используем APIMessage вместо Message
+      // Если это сообщение с трейд-оффером, парсим его
+      if (msg.content.startsWith('[TRADE_OFFER]')) {
+        const contentWithoutMarker = msg.content.replace('[TRADE_OFFER]', '');
+        const parts = contentWithoutMarker.split('|');
+        const imageUrl = parts[0] || '';
+        const tradeOfferId = parts[1] || '';
+        const status = parts[2] || 'PENDING';
+        
+        // Если нашли принятый трейд-оффер, обновляем статус чата
+        if (status === 'ACCEPTED' && selectedChat?.tradeAd) {
+          setChats(prev => prev.map(chat => 
+            chat.id === selectedChat.id 
+              ? { 
+                  ...chat, 
+                  tradeAd: { 
+                    ...chat.tradeAd!, 
+                    status: 'ACCEPTED' 
+                  } 
+                } 
+              : chat
+          ));
+          
+          // Обновляем selectedChat если он активен
+          if (selectedChat.id === chatId) {
+            setSelectedChat(prev => prev ? {
+              ...prev,
+              tradeAd: {
+                ...prev.tradeAd!,
+                status: 'ACCEPTED'
+              }
+            } : null);
+          }
+        }
       }
-      
-      // Проверяем, есть ли еще сообщения
-      if (response.data.length < 20) {
-        setHasMoreMessages(false);
-      }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      showNotification('Failed to load messages', 'error');
-    } finally {
-      setLoadingMessages(false);
+      return msg;
+    });
+    
+    if (page === 1) {
+      setMessages(parsedMessages);
+    } else {
+      setMessages(prev => [...parsedMessages, ...prev]);
     }
-  };
+    
+    // Проверяем, есть ли еще сообщения
+    if (response.data.length < 20) {
+      setHasMoreMessages(false);
+    }
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    showNotification('Failed to load messages', 'error');
+  } finally {
+    setLoadingMessages(false);
+  }
+};
 
   // Функция для загрузки дополнительных сообщений
   const loadMoreMessages = async () => {
