@@ -100,3 +100,34 @@ export interface TradeAdWithDetails extends TradeAd {
     series: string;
   };
 }
+export interface ForumTopic {
+  id: string;
+  title: string;
+  description: string;
+  category: 'GENERAL' | 'TRADING' | 'COLLECTING' | 'REVIEWS' | 'NEWS' | 'EVENTS';
+  creator: {
+    id: string;
+    username: string;
+    avatar?: string;
+  };
+  messageCount: number;
+  lastActivity: string;
+  participants: number;
+  isPinned?: boolean;
+  createdAt: string;
+}
+
+export interface ForumMessage {
+  id: string;
+  topicId: string;
+  senderId: string;
+  sender: {
+    id: string;
+    username: string;
+    avatar?: string;
+  };
+  content: string;
+  createdAt: string;
+  isRead?: boolean;
+  likes?: string[]; // Array of user IDs who liked the message
+}

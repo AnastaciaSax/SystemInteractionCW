@@ -14,8 +14,12 @@ import VerticalToggleButtons from './components/VerticalToggleButtons';
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
 import Notification from '../../components/ui/Notification';
+import ForumTopicList from './components/ForumTopicList';
+import ForumTopicWindow from './components/ForumTopicWindow';
+import CreateTopicModal from './components/CreateTopicModal';
 import { chatAPI, Chat, Message as APIMessage, TradeOfferResponse } from '../../services/api';
 import './ChitChat.css';
+import { initializeForumData, getForumTopics, getForumMessages, addForumTopic, addForumMessage, searchForumTopics, LocalForumTopic, LocalForumMessage, getForumCategories } from '../../utils/forumStorage';
 
 const ChitChat: React.FC = () => {
   const [mode, setMode] = useState<'chat' | 'forum'>('chat');
@@ -41,6 +45,30 @@ const ChitChat: React.FC = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const pendingTradeOfferProcessed = useRef(false);
   const isMounted = useRef(true);
+
+    // Состояния для форума
+  const [forumTopics, setForumTopics] = useState<LocalForumTopic[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<LocalForumTopic | null>(null);
+  const [forumTopicMessages, setForumTopicMessages] = useState<LocalForumMessage[]>([]);
+  const [loadingForum, setLoadingForum] = useState(false);
+  const [showCreateTopicModal, setShowCreateTopicModal] = useState(false);
+  const [forumSearchQuery, setForumSearchQuery] = useState('');
+  const [forumCategoryFilter, setForumCategoryFilter] = useState<string>('ALL');
+
+  // Обновление при изменении localStorage
+useEffect(() => {
+  const handleStorageChange = () => {
+    if (mode === 'forum') {
+      loadForumTopics();
+      if (selectedTopic) {
+        loadForumMessages(selectedTopic.id);
+      }
+    }
+  };
+
+  window.addEventListener('storage', handleStorageChange);
+  return () => window.removeEventListener('storage', handleStorageChange);
+}, [mode, selectedTopic]);
 
   useEffect(() => {
     return () => {
@@ -445,8 +473,134 @@ const handleFinishTrade = async (tradeId: string, rating: number, comment: strin
     setSelectedChat(chat);
   };
 
-  // Остальной код (рендеринг) остается без изменений...
-  // [Ваш существующий JSX код]
+ // Инициализация форума при загрузке
+  useEffect(() => {
+    if (isMounted.current) {
+      initializeForumData();
+      loadForumTopics();
+    }
+  }, []);
+
+  // Загрузка тем форума
+  const loadForumTopics = () => {
+    setLoadingForum(true);
+    try {
+      const topics = getForumTopics();
+      setForumTopics(topics);
+      
+      // Автоматически выбираем первую тему если нет выбранной
+      if (!selectedTopic && topics.length > 0) {
+        setSelectedTopic(topics[0]);
+        loadForumMessages(topics[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading forum topics:', error);
+      showNotification('Failed to load forum topics', 'error');
+    } finally {
+      if (isMounted.current) {
+        setLoadingForum(false);
+      }
+    }
+  };
+
+  // Загрузка сообщений темы
+  const loadForumMessages = (topicId: string) => {
+    try {
+      const messages = getForumMessages(topicId);
+      setForumTopicMessages(messages);
+    } catch (error) {
+      console.error('Error loading forum messages:', error);
+      showNotification('Failed to load forum messages', 'error');
+    }
+  };
+
+  // Создание новой темы
+  const handleCreateTopic = (title: string, description: string, category: string) => {
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    const newTopic = addForumTopic({
+      title,
+      description,
+      category: category as any,
+      creator: {
+        id: currentUser.id,
+        username: currentUser.username,
+        avatar: currentUser.profile?.avatar
+      },
+      messageCount: 0,
+      lastActivity: new Date().toISOString(),
+      participants: 1
+    });
+    
+    setForumTopics(prev => [...prev, newTopic]);
+    setSelectedTopic(newTopic);
+    setForumTopicMessages([]);
+    
+    showNotification('Topic created successfully!', 'success');
+  };
+
+  // Отправка сообщения в форум
+  const handleSendForumMessage = async (content: string) => {
+    if (!selectedTopic) return;
+    
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      const newMessage = addForumMessage(selectedTopic.id, {
+        topicId: selectedTopic.id,
+        senderId: currentUser.id,
+        sender: {
+          id: currentUser.id,
+          username: currentUser.username,
+          avatar: currentUser.profile?.avatar
+        },
+        content,
+        isRead: true
+      });
+      
+      setForumTopicMessages(prev => [...prev, newMessage]);
+      setForumTopics(prev => 
+        prev.map(topic => 
+          topic.id === selectedTopic.id 
+            ? { 
+                ...topic, 
+                messageCount: topic.messageCount + 1,
+                lastActivity: new Date().toISOString()
+              } 
+            : topic
+        )
+      );
+      
+      showNotification('Message sent to forum', 'success');
+    } catch (error) {
+      console.error('Error sending forum message:', error);
+      showNotification('Failed to send message', 'error');
+    }
+  };
+
+  // Поиск тем
+  const handleForumSearch = () => {
+    if (!forumSearchQuery.trim()) {
+      loadForumTopics();
+      return;
+    }
+    
+    const filteredTopics = searchForumTopics(forumSearchQuery);
+    setForumTopics(filteredTopics);
+  };
+
+  // Фильтрация по категориям
+  const handleCategoryFilter = (category: string) => {
+    setForumCategoryFilter(category);
+    const allTopics = getForumTopics();
+    
+    if (category === 'ALL') {
+      setForumTopics(allTopics);
+    } else {
+      const filteredTopics = allTopics.filter(topic => topic.category === category);
+      setForumTopics(filteredTopics);
+    }
+  };
 
   if (loading) {
     return (
@@ -569,98 +723,141 @@ const handleFinishTrade = async (tradeId: string, rating: number, comment: strin
         }}
       >
         {mode === 'chat' ? (
-          <Box sx={{ 
-            width: '100%', 
-            height: '720px',
-            minHeight: '600px',
-            overflow: 'hidden',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            gap: 2,
-            display: 'flex',
-            flex: 1,
-          }}>
-            <VerticalToggleButtons mode={mode} onModeChange={setMode} />
-            
-            <ChatList
-              chats={chats}
-              selectedChat={selectedChat}
-              onSelectChat={handleSelectChat}
-              loading={loading}
-            />
-            
-            {selectedChat ? (
-              <ChatWindow
-                chat={selectedChat}
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                onSendTradeOffer={handleSendTradeOffer}
-                onAcceptTrade={handleAcceptTrade}
-                onRejectTrade={handleRejectTrade}
-                onSubmitComplaint={handleSubmitComplaint}
-                onFinishTrade={handleFinishTrade}
-                loadingMessages={loadingMessages}
-                currentUser={currentUser}
-                hasMoreMessages={hasMoreMessages}
-                onLoadMoreMessages={loadMoreMessages}
-              />
-            ) : (
-              <Box
-                sx={{
-                  flex: '1 1 0',
-                  alignSelf: 'stretch',
-                  padding: 3,
-                  background: 'white',
-                  borderRadius: 2,
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: '#852654',
-                    fontSize: '18px',
-                    fontFamily: '"Nobile", sans-serif',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  Select a chat to start messaging! 💬
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              background: 'white',
-              borderRadius: 3,
-              p: 4,
-              mt: 2,
-              textAlign: 'center',
-            }}
-          >
-            <Typography
-              variant="h5"
-              sx={{
-                color: '#560D30',
-                fontFamily: '"McLaren", cursive',
-                mb: 2,
-              }}
-            >
-              Forum Coming Soon! 🚧
-            </Typography>
-            <Typography
-              sx={{
-                color: '#852654',
-                fontFamily: '"Nobile", sans-serif',
-              }}
-            >
-              Our community forum is under construction. Check back soon for discussions, tips, and more!
-            </Typography>
-          </Box>
-        )}
+  <Box sx={{ 
+    width: '100%', 
+    height: '720px',
+    minHeight: '600px',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 2,
+    display: 'flex',
+    flex: 1,
+  }}>
+    <VerticalToggleButtons mode={mode} onModeChange={setMode} />
+    
+    <ChatList
+      chats={chats}
+      selectedChat={selectedChat}
+      onSelectChat={handleSelectChat}
+      loading={loading}
+    />
+    
+    {selectedChat ? (
+      <ChatWindow
+        chat={selectedChat}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        onSendTradeOffer={handleSendTradeOffer}
+        onAcceptTrade={handleAcceptTrade}
+        onRejectTrade={handleRejectTrade}
+        onSubmitComplaint={handleSubmitComplaint}
+        onFinishTrade={handleFinishTrade}
+        loadingMessages={loadingMessages}
+        currentUser={currentUser}
+        hasMoreMessages={hasMoreMessages}
+        onLoadMoreMessages={loadMoreMessages}
+      />
+    ) : (
+      <Box
+        sx={{
+          flex: '1 1 0',
+          alignSelf: 'stretch',
+          padding: 3,
+          background: 'white',
+          borderRadius: 2,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+        }}
+      >
+        <Typography
+          sx={{
+            color: '#852654',
+            fontSize: '18px',
+            fontFamily: '"Nobile", sans-serif',
+            fontStyle: 'italic',
+          }}
+        >
+          Select a chat to start messaging! 💬
+        </Typography>
+      </Box>
+    )}
+  </Box>
+) : (
+  <Box sx={{ 
+    width: '100%', 
+    height: '720px',
+    minHeight: '600px',
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    gap: 2,
+    display: 'flex',
+    flex: 1,
+  }}>
+    <VerticalToggleButtons mode={mode} onModeChange={setMode} />
+    
+    <ForumTopicList
+      topics={forumTopics}
+      selectedTopic={selectedTopic}
+      onSelectTopic={(topic) => {
+        setSelectedTopic(topic);
+        loadForumMessages(topic.id);
+      }}
+      onSearch={(query) => {
+        setForumSearchQuery(query);
+        const filteredTopics = searchForumTopics(query);
+        setForumTopics(filteredTopics);
+      }}
+      onCreateTopic={() => setShowCreateTopicModal(true)}
+      loading={loadingForum}
+      categoryFilter={forumCategoryFilter}
+      onCategoryChange={handleCategoryFilter}
+    />
+    
+    {selectedTopic ? (
+      <ForumTopicWindow
+        topic={selectedTopic}
+        messages={forumTopicMessages}
+        onSendMessage={handleSendForumMessage}
+        currentUser={currentUser}
+      />
+    ) : (
+      <Box
+        sx={{
+          flex: '1 1 0',
+          alignSelf: 'stretch',
+          padding: 3,
+          background: 'white',
+          borderRadius: 2,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+        }}
+      >
+        <Typography
+          sx={{
+            color: '#852654',
+            fontSize: '18px',
+            fontFamily: '"Nobile", sans-serif',
+            fontStyle: 'italic',
+          }}
+        >
+          Select a forum topic to join the discussion! 🗨️
+        </Typography>
+      </Box>
+    )}
+    
+    <CreateTopicModal
+      open={showCreateTopicModal}
+      onClose={() => setShowCreateTopicModal(false)}
+      onCreateTopic={handleCreateTopic}
+    />
+  </Box>
+)}
       </Container>
       
       <Footer />
