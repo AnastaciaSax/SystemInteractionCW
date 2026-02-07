@@ -102,6 +102,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+  // Следим за обновлением статуса в реальном времени
+  if (chat.tradeAd?.status === 'COMPLETED') {
+    // Если статус COMPLETED, кнопка должна скрыться
+    // Убедимся, что состояние обновилось
+    console.log('Trade completed, hiding finish button');
+  }
+}, [chat.tradeAd?.status]);
+
 useEffect(() => {
   if (shouldScrollToBottom && messages.length > 0) {
     const container = messagesContainerRef.current;
@@ -247,16 +256,10 @@ const handleSendMessage = () => {
 const isTradeReadyToFinish = useMemo(() => {
   if (!chat.tradeAd?.id) return false;
   
-  // Не показывать если статус уже COMPLETED
+  // Если статус уже COMPLETED, кнопка должна быть скрыта
   if (chat.tradeAd.status === 'COMPLETED') {
     return false;
   }
-  
-  // Проверяем, есть ли принятый трейд-оффер
-  const hasAcceptedTradeOffer = messages.some(msg => 
-    msg.content.startsWith('[TRADE_OFFER]') && 
-    msg.content.includes('|ACCEPTED')
-  );
   
   // Проверяем, является ли текущий пользователь участником сделки
   const isOwner = chat.tradeAd.userId === currentUser.id;
@@ -265,12 +268,19 @@ const isTradeReadyToFinish = useMemo(() => {
     msg.senderId === currentUser.id
   );
   
-  // Показывать кнопку если:
-  // 1. Есть принятый оффер
-  // 2. Пользователь является участником (владелец или отправитель оффера)
-  // 3. Сделка в статусе PENDING
-  return hasAcceptedTradeOffer && (isOwner || isOfferSender) && chat.tradeAd.status === 'PENDING';
-}, [chat.tradeAd?.status, messages, currentUser.id, chat.tradeAd?.userId]);
+  if (!isOwner && !isOfferSender) return false;
+  
+  // Проверяем, есть ли принятый трейд-оффер
+  const hasAcceptedTradeOffer = messages.some(msg => 
+    msg.content.startsWith('[TRADE_OFFER]') && 
+    msg.content.includes('|ACCEPTED')
+  );
+  
+  if (!hasAcceptedTradeOffer) return false;
+  
+  // Показываем кнопку только если статус PENDING и сделка еще не завершена
+  return chat.tradeAd.status === 'PENDING';
+}, [chat.tradeAd?.status, chat.tradeAd?.id, messages, currentUser.id, chat.tradeAd?.userId]);
 
   // Может ли текущий пользователь прикреплять trade offer
   // Только если: есть tradeAd, пользователь НЕ владелец объявления, статус ACTIVE (нет ожидающих предложений)

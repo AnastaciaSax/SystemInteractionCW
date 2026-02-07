@@ -1111,19 +1111,6 @@ app.post('/api/trades/:id/finish', async (req: any, res) => {
       return res.status(404).json({ error: 'Trade ad not found' });
     }
     
-    // Проверяем, что сделка еще не завершена
-    if (tradeAd.status === 'COMPLETED') {
-      return res.status(400).json({ error: 'Trade is already completed' });
-    }
-    
-    // Проверяем, что сделка в процессе
-    if (tradeAd.status !== 'PENDING') {
-      return res.status(400).json({ 
-        error: 'Trade is not in progress',
-        currentStatus: tradeAd.status
-      });
-    }
-    
     // Проверяем, что есть принятый оффер
     if (tradeAd.offers.length === 0) {
       return res.status(400).json({ error: 'No accepted offer found for this trade' });
@@ -1185,30 +1172,44 @@ app.post('/api/trades/:id/finish', async (req: any, res) => {
       data: { rating: averageRating }
     });
     
-    // Обновляем статус объявления на COMPLETED
-    const updatedTradeAd = await prisma.tradeAd.update({
-      where: { id: tradeId },
-      data: { status: 'COMPLETED' }
+    // ПРОВЕРЯЕМ: сколько отзывов уже есть для этой сделки
+    const allRatingsForTrade = await prisma.rating.findMany({
+      where: { tradeId: tradeId }
     });
     
-    // Увеличиваем счетчик сделок для обоих пользователей
-    await prisma.profile.updateMany({
-      where: {
-        userId: {
-          in: [tradeAd.userId, acceptedOffer.userId]
-        }
-      },
-      data: { tradeCount: { increment: 1 } }
-    });
+    let updatedStatus = tradeAd.status;
     
+    // Если уже есть 2 отзыва (от обоих участников) - тогда завершаем сделку
+    if (allRatingsForTrade.length >= 2) {
+      updatedStatus = 'COMPLETED';
+      await prisma.tradeAd.update({
+        where: { id: tradeId },
+        data: { status: 'COMPLETED' }
+      });
+      
+      // Увеличиваем счетчик сделок для обоих пользователей
+      await prisma.profile.updateMany({
+        where: {
+          userId: {
+            in: [tradeAd.userId, acceptedOffer.userId]
+          }
+        },
+        data: { tradeCount: { increment: 1 } }
+      });
+    }
+    
+    // ВОЗВРАЩАЕМ ОБНОВЛЕННЫЙ СТАТУС СРАЗУ
     res.json({
       success: true,
       rating: ratingRecord,
       newAverageRating: averageRating,
-      tradeAd: updatedTradeAd
+      tradeAd: {
+        ...tradeAd,
+        status: updatedStatus // Обновленный статус
+      }
     });
     
-    console.log('✅ Trade finished successfully');
+    console.log('✅ Rating submitted successfully. Status:', updatedStatus);
   } catch (error: any) {
     console.error('❌ Error finishing trade:', error);
     res.status(500).json({ error: error.message });

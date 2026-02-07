@@ -148,39 +148,44 @@ const fetchChats = async () => {
   }
 };
 
-  const fetchMessages = async (chatId: string, page = 1) => {
-    if (!isMounted.current || !chatId) return;
+const fetchMessages = async (chatId: string, page = 1) => {
+  if (!isMounted.current || !chatId) return;
+  
+  setLoadingMessages(true);
+  try {
+    const response = await chatAPI.getMessages(chatId, page, 20);
+    const newMessages = response.data;
     
-    setLoadingMessages(true);
-    try {
-      const response = await chatAPI.getMessages(chatId, page, 20);
-      const newMessages = response.data;
-      
-      // Парсим сообщения для обновления статусов трейд-офферов
-      // НЕ обновляем состояние здесь - это вызывает рекурсивные обновления
-      // Вместо этого обновим статус в отдельном эффекте
-      
-      if (isMounted.current) {
-        if (page === 1) {
-          setMessages(newMessages);
-        } else {
-          setMessages(prev => [...newMessages, ...prev]);
-        }
-        
-        // Проверяем, есть ли еще сообщения
-        if (newMessages.length < 20) {
-          setHasMoreMessages(false);
-        }
+    // ПРОВЕРЯЕМ СТАТУС СДЕЛКИ В СООБЩЕНИЯХ
+    const hasCompletedStatus = newMessages.some(msg => 
+      msg.content && msg.content.includes('|COMPLETED')
+    );
+    
+    if (hasCompletedStatus && selectedChat?.tradeAd?.status !== 'COMPLETED') {
+      updateChatStatus(chatId, 'COMPLETED');
+    }
+    
+    if (isMounted.current) {
+      if (page === 1) {
+        setMessages(newMessages);
+      } else {
+        setMessages(prev => [...newMessages, ...prev]);
       }
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      showNotification('Failed to load messages', 'error');
-    } finally {
-      if (isMounted.current) {
-        setLoadingMessages(false);
+      
+      // Проверяем, есть ли еще сообщения
+      if (newMessages.length < 20) {
+        setHasMoreMessages(false);
       }
     }
-  };
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    showNotification('Failed to load messages', 'error');
+  } finally {
+    if (isMounted.current) {
+      setLoadingMessages(false);
+    }
+  }
+};
 
   // Функция для загрузки дополнительных сообщений
   const loadMoreMessages = async () => {
@@ -202,7 +207,7 @@ const fetchChats = async () => {
     }
   };
 
-  // Обновление статуса чата при принятии трейд-оффера
+// Обновление статуса чата при принятии трейд-оффера
 const updateChatStatus = useCallback((chatId: string, status: string) => {
   console.log('Updating chat status:', { chatId, status });
   
@@ -225,14 +230,14 @@ const updateChatStatus = useCallback((chatId: string, status: string) => {
       : chat
   ));
   
-  // Обновляем selectedChat если он активен
-  if (selectedChat?.id === chatId && selectedChat?.tradeAd) {
+  // ОБНОВЛЯЕМ selectedChat ДАЖЕ ЕСЛИ ОН УЖЕ ВЫБРАН
+  if (selectedChat?.id === chatId) {
     setSelectedChat(prev => prev ? {
       ...prev,
-      tradeAd: {
-        ...prev.tradeAd!,
+      tradeAd: prev.tradeAd ? {
+        ...prev.tradeAd,
         status
-      }
+      } : undefined
     } : null);
   }
 }, [selectedChat]);
@@ -353,21 +358,9 @@ const handleAcceptTrade = async (offerId: string) => {
     }
   };
 
-  const handleFinishTrade = async (tradeId: string, rating: number, comment: string) => {
+const handleFinishTrade = async (tradeId: string, rating: number, comment: string) => {
   if (!selectedChat?.tradeAd) {
     showNotification('No trade selected', 'error');
-    return;
-  }
-
-  // Проверяем, является ли текущий пользователь участником сделки
-  const isOwner = selectedChat.tradeAd.userId === currentUser.id;
-  const hasAcceptedOffer = messages.some(msg => 
-    msg.content.startsWith('[TRADE_OFFER]') && 
-    msg.content.includes('|ACCEPTED')
-  );
-  
-  if (!isOwner && !hasAcceptedOffer) {
-    showNotification('Only trade participants can finish the trade', 'error');
     return;
   }
 
@@ -375,32 +368,28 @@ const handleAcceptTrade = async (offerId: string) => {
     const response = await chatAPI.finishTrade(tradeId, { rating, comment });
     
     if (response.data.success) {
-      showNotification('Trade completed successfully!', 'success');
+      showNotification('Rating submitted successfully!', 'success');
       
-      updateChatStatus(selectedChat.id, 'COMPLETED');
-      fetchChats();
+      // СРАЗУ обновляем статус на основе ответа сервера
+      if (response.data.tradeAd?.status) {
+        updateChatStatus(selectedChat.id, response.data.tradeAd.status);
+      }
       
-      const systemMessage: APIMessage = {
-        id: `system-${Date.now()}`,
-        senderId: 'system',
-        receiverId: currentUser.id,
-        content: `Trade has been completed! You gave a rating of ${rating}/5.`,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-        sender: {
-          id: 'system',
-          username: 'System',
-          profile: {
-            avatar: '/assets/system-avatar.png'
-          }
+      // Также обновляем список чатов для синхронизации
+      await fetchChats();
+      
+      // Принудительно обновляем selectedChat с новыми данными
+      if (selectedChat.id) {
+        const updatedChats = await chatAPI.getChats();
+        const updatedChat = updatedChats.data.find(chat => chat.id === selectedChat.id);
+        if (updatedChat) {
+          setSelectedChat(updatedChat);
         }
-      };
-      
-      setMessages(prev => [...prev, systemMessage]);
+      }
     }
   } catch (error: any) {
     console.error('Error finishing trade:', error.response?.data || error);
-    showNotification(error.response?.data?.error || 'Failed to finish trade', 'error');
+    showNotification(error.response?.data?.error || 'Failed to submit rating', 'error');
   }
 };
 
