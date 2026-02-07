@@ -86,9 +86,9 @@ router.get('/', async (req: any, res) => {
             photo: msg.trade.photo,
             userId: msg.trade.userId
           } : undefined,
-          unreadCount: chatMessages.filter(m => 
-            m.receiverId === userId && !m.isRead
-          ).length
+unreadCount: chatMessages.filter(m => 
+  m.receiverId === userId && !m.isRead
+).length
         });
       }
     });
@@ -628,5 +628,64 @@ router.post('/send', authenticate, async (req, res) => {
   }
 });
 
+router.post('/:chatId/mark-read', authenticate, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.userId;
+
+    // Разбираем chatId
+    const parts = chatId.split('-');
+    let userId1, userId2, tradeId;
+    
+    if (parts.length === 3) {
+      [userId1, userId2, tradeId] = parts;
+    } else if (parts.length === 2) {
+      [userId1, userId2] = parts;
+      tradeId = null;
+    } else {
+      userId1 = parts[0];
+      userId2 = parts[1];
+      tradeId = parts.slice(2).join('-');
+    }
+
+    // Проверяем, что текущий пользователь участвует в чате
+    if (userId !== userId1 && userId !== userId2) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'Access denied. You are not part of this chat.' 
+      });
+    }
+
+    // Обновляем все сообщения, где текущий пользователь является получателем и они не прочитаны
+    const whereClause: any = {
+      receiverId: userId,
+      isRead: false,
+      OR: [
+        { senderId: userId1, receiverId: userId2 },
+        { senderId: userId2, receiverId: userId1 }
+      ]
+    };
+
+    if (tradeId && tradeId !== 'undefined') {
+      whereClause.tradeId = tradeId;
+    }
+
+    // Обновляем сообщения как прочитанные
+    await prisma.message.updateMany({
+      where: whereClause,
+      data: { isRead: true }
+    });
+
+    console.log(`✅ Marked messages as read for chat ${chatId} by user ${userId}`);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to mark messages as read' 
+    });
+  }
+});
 
 export default router;

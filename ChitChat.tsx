@@ -105,15 +105,28 @@ const ChitChat: React.FC = () => {
     fetchChats();
   }, []);
 
-  // Обработка выбора чата
-  useEffect(() => {
-    if (selectedChat && isMounted.current) {
-      setMessages([]);
-      setCurrentPage(1);
-      setHasMoreMessages(true);
-      fetchMessages(selectedChat.id, 1);
-    }
-  }, [selectedChat?.id]); // Зависимость только от ID чата
+// Обработка выбора чата
+useEffect(() => {
+  if (selectedChat && isMounted.current) {
+    setMessages([]);
+    setCurrentPage(1);
+    setHasMoreMessages(true);
+    fetchMessages(selectedChat.id, 1);
+    
+    // ПОМЕЧАЕМ СООБЩЕНИЯ КАК ПРОЧИТАННЫЕ ПРИ ВЫБОРЕ ЧАТА
+    // Это делается внутри fetchMessages для первой страницы
+    // Но для надежности можно добавить и здесь
+    const markAsRead = async () => {
+      try {
+        await chatAPI.markMessagesAsRead(selectedChat.id);
+      } catch (error) {
+        console.error('Error marking messages as read on chat select:', error);
+      }
+    };
+    
+    markAsRead();
+  }
+}, [selectedChat?.id]); // Зависимость только от ID чата
 
 const fetchChats = async () => {
   if (!isMounted.current) return;
@@ -123,19 +136,15 @@ const fetchChats = async () => {
     const response = await chatAPI.getChats();
     const chatsData = response.data;
     
-    // УБЕРИ ЭТОТ БЛОК! НЕ нужно менять статус на ACCEPTED на клиенте
-    // Просто используй данные с сервера как есть
-    const chatsWithStatus = chatsData; // Просто используем данные как есть
-    
     if (isMounted.current) {
-      setChats(chatsWithStatus);
+      setChats(chatsData);
       
       // Обрабатываем pending trade offer после загрузки чатов
-      processPendingTradeOffer(chatsWithStatus);
+      processPendingTradeOffer(chatsData);
       
       // Выбираем первый чат, если нет выбранного
-      if (!selectedChat && chatsWithStatus.length > 0) {
-        setSelectedChat(chatsWithStatus[0]);
+      if (!selectedChat && chatsData.length > 0) {
+        setSelectedChat(chatsData[0]);
       }
     }
   } catch (error) {
@@ -163,6 +172,26 @@ const fetchMessages = async (chatId: string, page = 1) => {
     
     if (hasCompletedStatus && selectedChat?.tradeAd?.status !== 'COMPLETED') {
       updateChatStatus(chatId, 'COMPLETED');
+    }
+    
+    // ПОМЕЧАЕМ СООБЩЕНИЯ КАК ПРОЧИТАННЫЕ ПРИ ЗАГРУЗКЕ
+    if (page === 1) {
+      try {
+        await chatAPI.markMessagesAsRead(chatId);
+        console.log('✅ Messages marked as read for chat:', chatId);
+        
+        // Обновляем состояние чатов, сбрасывая счетчик непрочитанных
+        setChats(prev => prev.map(chat => 
+          chat.id === chatId ? { ...chat, unreadCount: 0 } : chat
+        ));
+        
+        // Если этот чат выбран, обновляем и его
+        if (selectedChat?.id === chatId) {
+          setSelectedChat(prev => prev ? { ...prev, unreadCount: 0 } : null);
+        }
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
     }
     
     if (isMounted.current) {
@@ -242,38 +271,47 @@ const updateChatStatus = useCallback((chatId: string, status: string) => {
   }
 }, [selectedChat]);
 
-  const handleSendMessage = async (content: string) => {
-    if (!selectedChat) return;
+const handleSendMessage = async (content: string) => {
+  if (!selectedChat) return;
+  
+  try {
+    const response = await chatAPI.sendMessage({
+      receiverId: selectedChat.otherUser.id,
+      content,
+      tradeId: selectedChat.tradeAd?.id
+    });
     
-    try {
-      const response = await chatAPI.sendMessage({
-        receiverId: selectedChat.otherUser.id,
-        content,
-        tradeId: selectedChat.tradeAd?.id
-      });
-      
-      const newMessage = response.data.message;
-      
-      // Добавляем новое сообщение только в конец
-      setMessages(prev => [...prev, newMessage]);
-      
-      // Обновляем чат
-      setChats(prev => prev.map(chat => 
-        chat.id === selectedChat.id 
-          ? { 
-              ...chat, 
-              lastMessage: newMessage,
-              unreadCount: 0,
-            }
-          : chat
-      ));
-      
-      showNotification('Message sent successfully', 'success');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      showNotification('Failed to send message', 'error');
+    const newMessage = response.data.message;
+    
+    // Добавляем новое сообщение только в конец
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Обновляем чат
+    setChats(prev => prev.map(chat => 
+      chat.id === selectedChat.id 
+        ? { 
+            ...chat, 
+            lastMessage: newMessage,
+            unreadCount: 0, // Сбрасываем счетчик при отправке сообщения
+          }
+        : chat
+    ));
+    
+    // Помечаем все сообщения в чате как прочитанные
+    if (selectedChat.id) {
+      try {
+        await chatAPI.markMessagesAsRead(selectedChat.id);
+      } catch (error) {
+        console.error('Error marking messages as read after sending:', error);
+      }
     }
-  };
+    
+    showNotification('Message sent successfully', 'success');
+  } catch (error) {
+    console.error('Error sending message:', error);
+    showNotification('Failed to send message', 'error');
+  }
+};
 
   const handleSendTradeOffer = async (file: File) => {
     if (!selectedChat || !selectedChat.tradeAd) {

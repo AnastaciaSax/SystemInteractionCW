@@ -190,8 +190,13 @@ export const chatAPI = {
 acceptTradeOffer: (offerId: string, accept: boolean) => 
   api.post<TradeOfferResponse>(`/chat/trade-offer/${offerId}/accept`, { accept }),
     
-  finishTrade: (tradeId: string, data: { rating?: number; comment?: string }) => 
-    api.post(`/trades/${tradeId}/finish`, data),
+finishTrade: (tradeId: string, data: { rating: number; comment: string }) => 
+    api.post<{
+      success: boolean;
+      rating: any;
+      newAverageRating: number;
+      tradeAd: any;
+    }>(`/trades/${tradeId}/finish`, data),
   
   submitComplaint: (data: { 
     reportedUserId: string; 
@@ -212,6 +217,8 @@ acceptTradeOffer: (offerId: string, accept: boolean) =>
       chat: Chat;
       existing: boolean;
     }>(`/chat/ensure/${tradeAdId}/${otherUserId}`),
+     markMessagesAsRead: (chatId: string) => 
+    api.post<{ success: boolean }>(`/chat/${chatId}/mark-read`),
 };
 
 // Типы
