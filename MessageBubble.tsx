@@ -44,8 +44,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   // Если в сообщении нет статуса, смотрим на статус чата
-  const isOfferAccepted = offerStatus === 'ACCEPTED' || chatStatus === 'ACCEPTED';
-  const isOfferRejected = offerStatus === 'REJECTED' || chatStatus === 'ACTIVE';
+// НО: chatStatus будет 'PENDING', а не 'ACCEPTED' для TradeAd
+// Так что оставляем только проверку offerStatus из сообщения
+const isOfferAccepted = offerStatus === 'ACCEPTED';
+const isOfferRejected = offerStatus === 'REJECTED';
 
   const handleAcceptClick = (e: React.MouseEvent) => {
     e.preventDefault();

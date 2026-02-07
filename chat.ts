@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -18,11 +19,17 @@ interface UploadedFile {
 }
 
 // Получение всех чатов для текущего пользователя
-router.get('/', authenticate, async (req, res) => {
+router.get('/', async (req: any, res) => {
   try {
-    const userId = req.user.userId;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
 
-    // Получаем все сообщения сгруппированные по tradeId и другим пользователям
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+
+    // Получаем все чаты пользователя
     const messages = await prisma.message.findMany({
       where: {
         OR: [
@@ -32,85 +39,66 @@ router.get('/', authenticate, async (req, res) => {
       },
       include: {
         sender: {
-          include: {
-            profile: true
-          }
+          include: { profile: true }
         },
         receiver: {
-          include: {
-            profile: true
-          }
+          include: { profile: true }
         },
-        trade: {
-          include: {
-            user: {
-              include: {
-                profile: true
-              }
-            },
-            figurine: true
-          }
-        }
+        trade: true
       },
-      orderBy: {
-        createdAt: 'desc'
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Группируем сообщения по чатам
+    const chatsMap = new Map();
+
+    messages.forEach(msg => {
+      // Определяем ID чата
+      const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+      const sortedIds = [userId, otherUserId].sort();
+      const chatId = msg.tradeId 
+        ? `${sortedIds[0]}-${sortedIds[1]}-${msg.tradeId}`
+        : `${sortedIds[0]}-${sortedIds[1]}`;
+
+      if (!chatsMap.has(chatId)) {
+        // Проверяем, есть ли в сообщениях этого чата принятый трейд-оффер
+        const chatMessages = messages.filter(m => {
+          const mOtherUserId = m.senderId === userId ? m.receiverId : m.senderId;
+          const mSortedIds = [userId, mOtherUserId].sort();
+          const mChatId = m.tradeId 
+            ? `${mSortedIds[0]}-${mSortedIds[1]}-${m.tradeId}`
+            : `${mSortedIds[0]}-${mSortedIds[1]}`;
+          return mChatId === chatId;
+        });
+
+        const hasAcceptedTradeOffer = chatMessages.some(m => 
+          m.content.startsWith('[TRADE_OFFER]') && 
+          m.content.includes('|ACCEPTED')
+        );
+
+        chatsMap.set(chatId, {
+          id: chatId,
+          otherUser: msg.senderId === userId ? msg.receiver : msg.sender,
+          tradeAd: msg.trade ? {
+            id: msg.trade.id,
+            title: msg.trade.title,
+            status: msg.trade.status, // Оставляем оригинальный статус из БД
+            photo: msg.trade.photo,
+            userId: msg.trade.userId
+          } : undefined,
+          unreadCount: chatMessages.filter(m => 
+            m.receiverId === userId && !m.isRead
+          ).length
+        });
       }
     });
 
-    // Группируем сообщения по уникальным чатам
-    const chatMap = new Map<string, any>();
+    const chats = Array.from(chatsMap.values());
     
-    messages.forEach(message => {
-      // Определяем другого пользователя в чате
-      const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
-      const otherUser = message.senderId === userId ? message.receiver : message.sender;
-      
-// Создаем уникальный ключ чата: комбинация пользователей + tradeId
-const sortedIds = [userId, otherUserId].sort();
-const chatKey = message.tradeId 
-  ? `${sortedIds[0]}-${sortedIds[1]}-${message.tradeId}`
-  : `${sortedIds[0]}-${sortedIds[1]}`;
-      
-      if (!chatMap.has(chatKey)) {
-        // Создаем новый чат
-        const chat = {
-          id: chatKey,
-          otherUser: {
-            id: otherUser.id,
-            username: otherUser.username,
-            profile: otherUser.profile,
-            region: otherUser.region
-          },
-          tradeAd: message.trade,
-          lastMessage: message,
-          unreadCount: 0,
-          createdAt: message.createdAt
-        };
-        
-        // Считаем непрочитанные сообщения
-        chat.unreadCount = messages.filter(m => 
-          m.senderId === otherUserId && 
-          m.receiverId === userId && 
-          !m.isRead &&
-          (message.tradeId ? m.tradeId === message.tradeId : !m.tradeId)
-        ).length;
-        
-        chatMap.set(chatKey, chat);
-      }
-    });
-
-    // Преобразуем Map в массив и сортируем по времени последнего сообщения
-    const chats = Array.from(chatMap.values()).sort((a, b) => 
-      new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
-    );
-
     res.json(chats);
   } catch (error: any) {
-    console.error('Get chats error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || 'Failed to get chats' 
-    });
+    console.error('Error fetching chats:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -639,5 +627,6 @@ router.post('/send', authenticate, async (req, res) => {
     });
   }
 });
+
 
 export default router;

@@ -95,14 +95,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const [processingOfferId, setProcessingOfferId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
 
   // Прокрутка к последнему сообщению
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    // Прокручиваем вниз только при новом сообщении, если пользователь не прокручивал вверх
+useEffect(() => {
+  if (shouldScrollToBottom && messages.length > 0) {
     const container = messagesContainerRef.current;
     if (container) {
       const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
@@ -110,18 +111,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         scrollToBottom();
       }
     }
-  }, [messages]);
+  }
+}, [messages, shouldScrollToBottom]);
 
   // Обработчик прокрутки для бесконечной загрузки
-  const handleScroll = useCallback(() => {
-    const container = messagesContainerRef.current;
-    if (!container || loadingMessages || !hasMoreMessages || !onLoadMoreMessages) return;
-    
-    // Проверяем, достигли ли мы верха (50px от верха)
-    if (container.scrollTop === 0) {
-      onLoadMoreMessages();
-    }
-  }, [loadingMessages, hasMoreMessages, onLoadMoreMessages]);
+const handleScroll = useCallback(() => {
+  const container = messagesContainerRef.current;
+  if (!container) return;
+  
+  // Проверяем, находится ли пользователь внизу контейнера
+  const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+  setShouldScrollToBottom(isAtBottom);
+  
+  // Проверяем, достигли ли мы верха (50px от верха) для загрузки предыдущих сообщений
+  if (container.scrollTop <= 50 && !loadingMessages && hasMoreMessages && onLoadMoreMessages) {
+    onLoadMoreMessages();
+  }
+}, [loadingMessages, hasMoreMessages, onLoadMoreMessages]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -156,24 +162,29 @@ useEffect(() => {
   }
 }, [messages, chat]);
 
-  // Функция для получения текста статуса
-  const getStatusText = (status: string | undefined) => {
-    switch (status) {
-      case 'ACTIVE': return 'Available';
-      case 'PENDING': return 'In Progress';
-      case 'COMPLETED': return 'Completed';
-      case 'CANCELLED': return 'Cancelled';
-      case 'ACCEPTED': return 'Accepted';
-      default: return 'Available';
-    }
-  };
+useEffect(() => {
+  // При смене чата сбрасываем shouldScrollToBottom на true
+  setShouldScrollToBottom(true);
+}, [chat.id]);
 
-  const handleSendMessage = () => {
-    if (message.trim()) {
-      onSendMessage(message);
-      setMessage('');
-    }
-  };
+  // Функция для получения текста статуса
+const getStatusText = (status: string | undefined) => {
+  switch (status) {
+    case 'ACTIVE': return 'Available';
+    case 'PENDING': return 'In Progress'; // Оффер отправлен или принят
+    case 'COMPLETED': return 'Completed';
+    case 'CANCELLED': return 'Cancelled';
+    default: return 'Available';
+  }
+};
+
+const handleSendMessage = () => {
+  if (message.trim()) {
+    onSendMessage(message);
+    setMessage('');
+    setShouldScrollToBottom(true);
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -234,19 +245,32 @@ useEffect(() => {
   };
 
 const isTradeReadyToFinish = useMemo(() => {
-  // Проверяем статус в tradeAd
-  if (chat.tradeAd?.status === 'ACCEPTED') {
-    return true;
+  if (!chat.tradeAd?.id) return false;
+  
+  // Не показывать если статус уже COMPLETED
+  if (chat.tradeAd.status === 'COMPLETED') {
+    return false;
   }
   
-  // Также проверяем сообщения на наличие принятого трейд-оффера
+  // Проверяем, есть ли принятый трейд-оффер
   const hasAcceptedTradeOffer = messages.some(msg => 
     msg.content.startsWith('[TRADE_OFFER]') && 
     msg.content.includes('|ACCEPTED')
   );
   
-  return hasAcceptedTradeOffer;
-}, [chat.tradeAd?.status, messages]);
+  // Проверяем, является ли текущий пользователь участником сделки
+  const isOwner = chat.tradeAd.userId === currentUser.id;
+  const isOfferSender = messages.some(msg => 
+    msg.content.startsWith('[TRADE_OFFER]') && 
+    msg.senderId === currentUser.id
+  );
+  
+  // Показывать кнопку если:
+  // 1. Есть принятый оффер
+  // 2. Пользователь является участником (владелец или отправитель оффера)
+  // 3. Сделка в статусе PENDING
+  return hasAcceptedTradeOffer && (isOwner || isOfferSender) && chat.tradeAd.status === 'PENDING';
+}, [chat.tradeAd?.status, messages, currentUser.id, chat.tradeAd?.userId]);
 
   // Может ли текущий пользователь прикреплять trade offer
   // Только если: есть tradeAd, пользователь НЕ владелец объявления, статус ACTIVE (нет ожидающих предложений)
@@ -593,7 +617,7 @@ const isTradeReadyToFinish = useMemo(() => {
               </Tooltip>
             )}
             
-            {/* Иконка завершения сделки - только если статус ACCEPTED */}
+            {/* Иконка завершения сделки - только если статус PENDING и есть accepted оффер */}
             {isTradeReadyToFinish && (
               <Tooltip title="Submit Finished Trade">
                 <IconButton

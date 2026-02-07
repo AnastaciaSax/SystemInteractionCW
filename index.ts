@@ -1079,3 +1079,138 @@ app.post('/api/complaints', async (req: any, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+app.post('/api/trades/:id/finish', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const raterId = decoded.userId;
+    
+    const tradeId = req.params.id;
+    const { rating, comment } = req.body;
+    
+    console.log('🎯 Finishing trade:', tradeId, 'by user:', raterId);
+    
+    // Находим объявление
+    const tradeAd = await prisma.tradeAd.findUnique({
+      where: { id: tradeId },
+      include: {
+        user: true,
+        offers: {
+          where: { status: 'ACCEPTED' }
+        }
+      }
+    });
+    
+    if (!tradeAd) {
+      return res.status(404).json({ error: 'Trade ad not found' });
+    }
+    
+    // Проверяем, что сделка еще не завершена
+    if (tradeAd.status === 'COMPLETED') {
+      return res.status(400).json({ error: 'Trade is already completed' });
+    }
+    
+    // Проверяем, что сделка в процессе
+    if (tradeAd.status !== 'PENDING') {
+      return res.status(400).json({ 
+        error: 'Trade is not in progress',
+        currentStatus: tradeAd.status
+      });
+    }
+    
+    // Проверяем, что есть принятый оффер
+    if (tradeAd.offers.length === 0) {
+      return res.status(400).json({ error: 'No accepted offer found for this trade' });
+    }
+    
+    // Определяем, кто кого оценивает
+    const acceptedOffer = tradeAd.offers[0];
+    let ratedUserId;
+    
+    if (tradeAd.userId === raterId) {
+      // Владелец оценивает отправителя оффера
+      ratedUserId = acceptedOffer.userId;
+    } else if (acceptedOffer.userId === raterId) {
+      // Отправитель оффера оценивает владельца
+      ratedUserId = tradeAd.userId;
+    } else {
+      return res.status(403).json({ error: 'You are not part of this trade' });
+    }
+    
+    // Проверяем, не оставлял ли уже этот пользователь отзыв для этой сделки
+    const existingRating = await prisma.rating.findFirst({
+      where: {
+        tradeId: tradeId,
+        raterId: raterId
+      }
+    });
+    
+    if (existingRating) {
+      return res.status(400).json({ error: 'You have already rated this trade' });
+    }
+    
+    // Создаем отзыв
+    const ratingRecord = await prisma.rating.create({
+      data: {
+        userId: ratedUserId,
+        raterId: raterId,
+        tradeId: tradeId,
+        score: rating,
+        comment: comment
+      },
+      include: {
+        rater: {
+          include: {
+            profile: true
+          }
+        }
+      }
+    });
+    
+    // Обновляем рейтинг пользователя
+    const userRatings = await prisma.rating.findMany({
+      where: { userId: ratedUserId }
+    });
+    
+    const averageRating = userRatings.reduce((sum, r) => sum + r.score, 0) / userRatings.length;
+    
+    await prisma.profile.update({
+      where: { userId: ratedUserId },
+      data: { rating: averageRating }
+    });
+    
+    // Обновляем статус объявления на COMPLETED
+    const updatedTradeAd = await prisma.tradeAd.update({
+      where: { id: tradeId },
+      data: { status: 'COMPLETED' }
+    });
+    
+    // Увеличиваем счетчик сделок для обоих пользователей
+    await prisma.profile.updateMany({
+      where: {
+        userId: {
+          in: [tradeAd.userId, acceptedOffer.userId]
+        }
+      },
+      data: { tradeCount: { increment: 1 } }
+    });
+    
+    res.json({
+      success: true,
+      rating: ratingRecord,
+      newAverageRating: averageRating,
+      tradeAd: updatedTradeAd
+    });
+    
+    console.log('✅ Trade finished successfully');
+  } catch (error: any) {
+    console.error('❌ Error finishing trade:', error);
+    res.status(500).json({ error: error.message });
+  }
+});

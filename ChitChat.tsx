@@ -1,5 +1,4 @@
-// client/src/pages/ChitChat/ChitChat.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Box, 
   Container, 
@@ -17,8 +16,6 @@ import ChatWindow from './components/ChatWindow';
 import Notification from '../../components/ui/Notification';
 import { chatAPI, Chat, Message as APIMessage, TradeOfferResponse } from '../../services/api';
 import './ChitChat.css';
-
-// Удалите импорт AxiosResponse отсюда и используйте тип из axios напрямую
 
 const ChitChat: React.FC = () => {
   const [mode, setMode] = useState<'chat' | 'forum'>('chat');
@@ -42,180 +39,148 @@ const ChitChat: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const pendingTradeOfferProcessed = useRef(false);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    // Проверяем, есть ли pending trade offer из страницы Trade
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Обработка pending trade offer при загрузке чатов
+  const processPendingTradeOffer = useCallback((chatsList: Chat[]) => {
+    if (pendingTradeOfferProcessed.current) return;
+    
     const pendingTradeOfferStr = localStorage.getItem('pendingTradeOffer');
-    if (pendingTradeOfferStr && chats.length > 0) {
-      const tradeAd = JSON.parse(pendingTradeOfferStr);
-      
-      // Формируем id чата так же, как на сервере
-      const sortedIds = [currentUser.id, tradeAd.userId].sort();
-      const chatId = tradeAd.id 
-        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
-        : `${sortedIds[0]}-${sortedIds[1]}`;
-      
-      // Ищем чат с этим id
-      const existingChat = chats.find(chat => chat.id === chatId);
-      
-      if (existingChat) {
-        setSelectedChat(existingChat);
-      } else {
-        // Создаем новый чат в состоянии
-        const newChat: Chat = {
-          id: chatId,
-          otherUser: {
-            id: tradeAd.userId,
-            username: tradeAd.user?.username || 'Trade Partner',
-            profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
-            region: tradeAd.user?.region
-          },
-          tradeAd: {
-            id: tradeAd.id,
-            title: tradeAd.title,
-            status: 'ACTIVE',
-            photo: tradeAd.photo,
-            userId: tradeAd.userId
-          },
-          unreadCount: 0,
-        };
+    if (pendingTradeOfferStr && chatsList.length > 0) {
+      try {
+        const tradeAd = JSON.parse(pendingTradeOfferStr);
         
-        setChats(prev => [newChat, ...prev]);
-        setSelectedChat(newChat);
+        // Формируем id чата так же, как на сервере
+        const sortedIds = [currentUser.id, tradeAd.userId].sort();
+        const chatId = tradeAd.id 
+          ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
+          : `${sortedIds[0]}-${sortedIds[1]}`;
+        
+        // Ищем чат с этим id
+        const existingChat = chatsList.find(chat => chat.id === chatId);
+        
+        if (existingChat) {
+          setSelectedChat(existingChat);
+        } else {
+          // Создаем новый чат в состоянии
+          const newChat: Chat = {
+            id: chatId,
+            otherUser: {
+              id: tradeAd.userId,
+              username: tradeAd.user?.username || 'Trade Partner',
+              profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
+              region: tradeAd.user?.region
+            },
+            tradeAd: {
+              id: tradeAd.id,
+              title: tradeAd.title,
+              status: 'ACTIVE',
+              photo: tradeAd.photo,
+              userId: tradeAd.userId
+            },
+            unreadCount: 0,
+          };
+          
+          setChats(prev => [newChat, ...prev]);
+          setSelectedChat(newChat);
+        }
+        
+        // Очищаем pending trade offer и помечаем как обработанный
+        localStorage.removeItem('pendingTradeOffer');
+        pendingTradeOfferProcessed.current = true;
+      } catch (error) {
+        console.error('Error processing pending trade offer:', error);
       }
-      
-      // Очищаем pending trade offer
-      localStorage.removeItem('pendingTradeOffer');
     }
-  }, [chats, currentUser.id]);
+  }, [currentUser.id]);
 
   useEffect(() => {
     fetchChats();
   }, []);
 
+  // Обработка выбора чата
   useEffect(() => {
-    if (selectedChat) {
-      fetchMessages(selectedChat.id, 1);
+    if (selectedChat && isMounted.current) {
+      setMessages([]);
       setCurrentPage(1);
       setHasMoreMessages(true);
+      fetchMessages(selectedChat.id, 1);
     }
-  }, [selectedChat]);
+  }, [selectedChat?.id]); // Зависимость только от ID чата
 
-  const fetchChats = async () => {
+const fetchChats = async () => {
+  if (!isMounted.current) return;
+  
   setLoading(true);
   try {
     const response = await chatAPI.getChats();
+    const chatsData = response.data;
     
-    // Парсим все сообщения в чатах, чтобы определить статусы трейд-офферов
-    const chatsWithParsedStatus = await Promise.all(
-      response.data.map(async (chat: Chat) => {
-        if (chat.tradeAd?.id) {
-          try {
-            // Загружаем сообщения для этого чата
-            const messagesResponse = await chatAPI.getMessages(chat.id, 1, 50);
-            const messages = messagesResponse.data;
-            
-            // Ищем сообщения с трейд-оффером
-            const tradeOfferMessages = messages.filter(msg => 
-              msg.content.startsWith('[TRADE_OFFER]')
-            );
-            
-            // Проверяем, есть ли принятый трейд-оффер
-            const acceptedOffer = tradeOfferMessages.find(msg => 
-              msg.content.includes('|ACCEPTED')
-            );
-            
-            if (acceptedOffer) {
-              return {
-                ...chat,
-                tradeAd: {
-                  ...chat.tradeAd,
-                  status: 'ACCEPTED'
-                }
-              };
-            }
-          } catch (error) {
-            console.error('Error parsing trade offer status:', error);
-          }
-        }
-        return chat;
-      })
-    );
+    // УБЕРИ ЭТОТ БЛОК! НЕ нужно менять статус на ACCEPTED на клиенте
+    // Просто используй данные с сервера как есть
+    const chatsWithStatus = chatsData; // Просто используем данные как есть
     
-    setChats(chatsWithParsedStatus);
-    
-    if (chatsWithParsedStatus.length > 0 && !selectedChat) {
-      setSelectedChat(chatsWithParsedStatus[0]);
+    if (isMounted.current) {
+      setChats(chatsWithStatus);
+      
+      // Обрабатываем pending trade offer после загрузки чатов
+      processPendingTradeOffer(chatsWithStatus);
+      
+      // Выбираем первый чат, если нет выбранного
+      if (!selectedChat && chatsWithStatus.length > 0) {
+        setSelectedChat(chatsWithStatus[0]);
+      }
     }
   } catch (error) {
     console.error('Error fetching chats:', error);
     showNotification('Failed to load chats', 'error');
   } finally {
-    setLoading(false);
+    if (isMounted.current) {
+      setLoading(false);
+    }
   }
 };
 
   const fetchMessages = async (chatId: string, page = 1) => {
-  setLoadingMessages(true);
-  try {
-    const response = await chatAPI.getMessages(chatId, page, 20);
+    if (!isMounted.current || !chatId) return;
     
-    // Парсим сообщения для определения статусов трейд-офферов
-    const parsedMessages = response.data.map((msg: APIMessage) => { // Используем APIMessage вместо Message
-      // Если это сообщение с трейд-оффером, парсим его
-      if (msg.content.startsWith('[TRADE_OFFER]')) {
-        const contentWithoutMarker = msg.content.replace('[TRADE_OFFER]', '');
-        const parts = contentWithoutMarker.split('|');
-        const imageUrl = parts[0] || '';
-        const tradeOfferId = parts[1] || '';
-        const status = parts[2] || 'PENDING';
+    setLoadingMessages(true);
+    try {
+      const response = await chatAPI.getMessages(chatId, page, 20);
+      const newMessages = response.data;
+      
+      // Парсим сообщения для обновления статусов трейд-офферов
+      // НЕ обновляем состояние здесь - это вызывает рекурсивные обновления
+      // Вместо этого обновим статус в отдельном эффекте
+      
+      if (isMounted.current) {
+        if (page === 1) {
+          setMessages(newMessages);
+        } else {
+          setMessages(prev => [...newMessages, ...prev]);
+        }
         
-        // Если нашли принятый трейд-оффер, обновляем статус чата
-        if (status === 'ACCEPTED' && selectedChat?.tradeAd) {
-          setChats(prev => prev.map(chat => 
-            chat.id === selectedChat.id 
-              ? { 
-                  ...chat, 
-                  tradeAd: { 
-                    ...chat.tradeAd!, 
-                    status: 'ACCEPTED' 
-                  } 
-                } 
-              : chat
-          ));
-          
-          // Обновляем selectedChat если он активен
-          if (selectedChat.id === chatId) {
-            setSelectedChat(prev => prev ? {
-              ...prev,
-              tradeAd: {
-                ...prev.tradeAd!,
-                status: 'ACCEPTED'
-              }
-            } : null);
-          }
+        // Проверяем, есть ли еще сообщения
+        if (newMessages.length < 20) {
+          setHasMoreMessages(false);
         }
       }
-      return msg;
-    });
-    
-    if (page === 1) {
-      setMessages(parsedMessages);
-    } else {
-      setMessages(prev => [...parsedMessages, ...prev]);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      showNotification('Failed to load messages', 'error');
+    } finally {
+      if (isMounted.current) {
+        setLoadingMessages(false);
+      }
     }
-    
-    // Проверяем, есть ли еще сообщения
-    if (response.data.length < 20) {
-      setHasMoreMessages(false);
-    }
-  } catch (error) {
-    console.error('Error fetching messages:', error);
-    showNotification('Failed to load messages', 'error');
-  } finally {
-    setLoadingMessages(false);
-  }
-};
+  };
 
   // Функция для загрузки дополнительных сообщений
   const loadMoreMessages = async () => {
@@ -224,8 +189,8 @@ const ChitChat: React.FC = () => {
     const nextPage = currentPage + 1;
     try {
       const response = await chatAPI.getMessages(selectedChat.id, nextPage, 20);
-      if (response.data.length > 0) {
-        setMessages(prev => [...prev, ...response.data]);
+      if (response.data.length > 0 && isMounted.current) {
+        setMessages(prev => [...response.data, ...prev]);
         setCurrentPage(nextPage);
       }
       if (response.data.length < 20) {
@@ -237,6 +202,41 @@ const ChitChat: React.FC = () => {
     }
   };
 
+  // Обновление статуса чата при принятии трейд-оффера
+const updateChatStatus = useCallback((chatId: string, status: string) => {
+  console.log('Updating chat status:', { chatId, status });
+  
+  // Используем только валидные статусы из AdStatus
+  const validStatuses = ['ACTIVE', 'PENDING', 'COMPLETED', 'CANCELLED'];
+  if (!validStatuses.includes(status)) {
+    console.warn('Invalid status for tradeAd:', status);
+    return;
+  }
+  
+  setChats(prev => prev.map(chat => 
+    chat.id === chatId && chat.tradeAd
+      ? { 
+          ...chat, 
+          tradeAd: { 
+            ...chat.tradeAd, 
+            status 
+          } 
+        } 
+      : chat
+  ));
+  
+  // Обновляем selectedChat если он активен
+  if (selectedChat?.id === chatId && selectedChat?.tradeAd) {
+    setSelectedChat(prev => prev ? {
+      ...prev,
+      tradeAd: {
+        ...prev.tradeAd!,
+        status
+      }
+    } : null);
+  }
+}, [selectedChat]);
+
   const handleSendMessage = async (content: string) => {
     if (!selectedChat) return;
     
@@ -247,10 +247,12 @@ const ChitChat: React.FC = () => {
         tradeId: selectedChat.tradeAd?.id
       });
       
-      // Извлекаем сообщение из ответа
       const newMessage = response.data.message;
+      
+      // Добавляем новое сообщение только в конец
       setMessages(prev => [...prev, newMessage]);
       
+      // Обновляем чат
       setChats(prev => prev.map(chat => 
         chat.id === selectedChat.id 
           ? { 
@@ -285,10 +287,13 @@ const ChitChat: React.FC = () => {
         throw new Error(response.data.error || 'Failed to send trade offer');
       }
       
-      // Извлекаем сообщение из ответа
-      if (response.data.message) {
+      // Добавляем сообщение с трейд-оффером
+      if (response.data.message && isMounted.current) {
         setMessages(prev => [...prev, response.data.message!]);
       }
+      
+      // Обновляем статус чата на PENDING
+      updateChatStatus(selectedChat.id, 'PENDING');
       
       showNotification('Trade offer sent successfully', 'success');
     } catch (error: any) {
@@ -297,60 +302,31 @@ const ChitChat: React.FC = () => {
     }
   };
 
-  const handleAcceptTrade = async (offerId: string) => {
-    try {
-      const response = await chatAPI.acceptTradeOffer(offerId, true);
-      
-      // Обновляем сообщения с уведомлением о принятии
-      if (response.data.message) {
-        setMessages(prev => [...prev, response.data.message!]);
-      }
-      
-      // Обновляем статус чата
-      if (selectedChat && selectedChat.tradeAd) {
-        selectedChat.tradeAd.status = 'PENDING';
-        setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { 
-                ...chat, 
-                tradeAd: { ...chat.tradeAd!, status: 'PENDING' }
-              } 
-            : chat
-        ));
-      }
-      
-      // Обновляем сообщение с trade offer, чтобы показать, что оно принято
-      setMessages(prev => prev.map(msg => {
-        if (msg.content.includes(`|${offerId}|`)) {
-          return { ...msg, content: msg.content.replace('|PENDING', '|ACCEPTED') };
-        }
-        if (msg.content.includes(`|${offerId}`) && !msg.content.includes('|ACCEPTED') && !msg.content.includes('|REJECTED')) {
-          return { ...msg, content: `${msg.content}|ACCEPTED` };
-        }
-        return msg;
-      }));
-      
-      showNotification('Trade accepted!', 'success');
-    } catch (error) {
-      console.error('Error accepting trade:', error);
-      showNotification('Failed to accept trade', 'error');
+const handleAcceptTrade = async (offerId: string) => {
+  try {
+    const response = await chatAPI.acceptTradeOffer(offerId, true);
+    
+    // Обновляем сообщения
+    if (response.data.message && isMounted.current) {
+      setMessages(prev => [...prev, response.data.message!]);
     }
-  };
+    
+    // Обновляем статус чата на PENDING (это правильный статус для TradeAd после принятия оффера)
+    updateChatStatus(selectedChat?.id || '', 'PENDING');
+    
+    showNotification('Trade accepted!', 'success');
+  } catch (error) {
+    console.error('Error accepting trade:', error);
+    showNotification('Failed to accept trade', 'error');
+  }
+};
 
   const handleRejectTrade = async (offerId: string) => {
     try {
       await chatAPI.acceptTradeOffer(offerId, false);
       
-      // Обновляем сообщение с trade offer, чтобы показать, что оно отклонено
-      setMessages(prev => prev.map(msg => {
-        if (msg.content.includes(`|${offerId}|`)) {
-          return { ...msg, content: msg.content.replace('|PENDING', '|REJECTED') };
-        }
-        if (msg.content.includes(`|${offerId}`) && !msg.content.includes('|ACCEPTED') && !msg.content.includes('|REJECTED')) {
-          return { ...msg, content: `${msg.content}|REJECTED` };
-        }
-        return msg;
-      }));
+      // Обновляем статус чата
+      updateChatStatus(selectedChat?.id || '', 'ACTIVE');
       
       showNotification('Trade offer rejected', 'info');
     } catch (error) {
@@ -378,27 +354,72 @@ const ChitChat: React.FC = () => {
   };
 
   const handleFinishTrade = async (tradeId: string, rating: number, comment: string) => {
-    try {
-      await chatAPI.finishTrade(tradeId, { rating, comment });
+  if (!selectedChat?.tradeAd) {
+    showNotification('No trade selected', 'error');
+    return;
+  }
+
+  // Проверяем, является ли текущий пользователь участником сделки
+  const isOwner = selectedChat.tradeAd.userId === currentUser.id;
+  const hasAcceptedOffer = messages.some(msg => 
+    msg.content.startsWith('[TRADE_OFFER]') && 
+    msg.content.includes('|ACCEPTED')
+  );
+  
+  if (!isOwner && !hasAcceptedOffer) {
+    showNotification('Only trade participants can finish the trade', 'error');
+    return;
+  }
+
+  try {
+    const response = await chatAPI.finishTrade(tradeId, { rating, comment });
+    
+    if (response.data.success) {
       showNotification('Trade completed successfully!', 'success');
+      
+      updateChatStatus(selectedChat.id, 'COMPLETED');
       fetchChats();
-    } catch (error) {
-      console.error('Error finishing trade:', error);
-      showNotification('Failed to finish trade', 'error');
+      
+      const systemMessage: APIMessage = {
+        id: `system-${Date.now()}`,
+        senderId: 'system',
+        receiverId: currentUser.id,
+        content: `Trade has been completed! You gave a rating of ${rating}/5.`,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        sender: {
+          id: 'system',
+          username: 'System',
+          profile: {
+            avatar: '/assets/system-avatar.png'
+          }
+        }
+      };
+      
+      setMessages(prev => [...prev, systemMessage]);
     }
-  };
+  } catch (error: any) {
+    console.error('Error finishing trade:', error.response?.data || error);
+    showNotification(error.response?.data?.error || 'Failed to finish trade', 'error');
+  }
+};
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({
-      open: true,
-      message,
-      type,
-    });
+    if (isMounted.current) {
+      setNotification({
+        open: true,
+        message,
+        type,
+      });
+    }
   };
 
   const handleSelectChat = (chat: Chat) => {
     setSelectedChat(chat);
   };
+
+  // Остальной код (рендеринг) остается без изменений...
+  // [Ваш существующий JSX код]
 
   if (loading) {
     return (
