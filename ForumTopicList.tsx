@@ -4,15 +4,12 @@ import React, { useState } from 'react';
 import {
   Box,
   Typography,
-  TextField,
   Button,
   Chip,
-  Skeleton,
-  InputAdornment,
-  IconButton
+  Skeleton
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
+import SearchInput from '../../../components/ui/SearchInput'; // Импортируем SearchInput
 import { LocalForumTopic } from '../../../utils/forumStorage';
 
 interface ForumTopicListProps {
@@ -48,10 +45,14 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
     { value: 'EVENTS', label: 'Events', color: '#00BCD4' }
   ];
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     onSearch(value);
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    onSearch('');
   };
 
   const getCategoryColor = (category: string) => {
@@ -72,6 +73,8 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
           alignItems: 'flex-start',
           gap: 2,
           display: 'inline-flex',
+          height: '720px', // Фиксированная высота как у ChatList
+          minHeight: '600px',
         }}
       >
         <Skeleton variant="text" width={128} height={40} />
@@ -95,6 +98,8 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
         alignItems: 'flex-start',
         gap: 2,
         display: 'inline-flex',
+        height: '720px', // Фиксированная высота
+        minHeight: '600px',
       }}
     >
       <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -126,27 +131,15 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
         </Button>
       </Box>
 
-      {/* Поиск */}
-      <TextField
-        fullWidth
-        size="small"
+      {/* Поиск с использованием SearchInput */}
+      <SearchInput
         placeholder="Search topics..."
         value={searchQuery}
-        onChange={handleSearch}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ color: '#852654' }} />
-            </InputAdornment>
-          ),
-          sx: {
-            borderRadius: 2,
-            borderColor: '#F6C4D4',
-            '&:hover fieldset': {
-              borderColor: '#EC2EA6',
-            },
-          }
-        }}
+        onChange={handleSearchChange}
+        onClear={handleSearchClear}
+        onSearch={() => onSearch(searchQuery)}
+        size="small"
+        fullWidth
       />
 
       {/* Фильтры категорий */}
@@ -170,8 +163,31 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
         ))}
       </Box>
 
-      {/* Список тем */}
-      <Box sx={{ flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: 1.5, display: 'flex', width: '100%' }}>
+      {/* Список тем с фиксированной высотой и скроллом */}
+      <Box 
+        sx={{ 
+          flexDirection: 'column', 
+          justifyContent: 'flex-start', 
+          alignItems: 'flex-start', 
+          gap: 1.5, 
+          display: 'flex', 
+          width: '100%',
+          flex: 1, // Занимает все доступное пространство
+          overflowY: 'auto', // Добавляем скролл
+          pr: 0.5, // Немного отступа для скроллбара
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(240, 94, 186, 0.1)',
+            borderRadius: '3px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#F05EBA',
+            borderRadius: '3px',
+          },
+        }}
+      >
         {topics.map((topic) => (
           <Box
             key={topic.id}
@@ -257,7 +273,7 @@ const ForumTopicList: React.FC<ForumTopicListProps> = ({
                 fontStyle: 'italic',
               }}
             >
-              No topics found. Create the first one! 🚀
+              {searchQuery ? 'No topics found for your search' : 'No topics found. Create the first one!'} 🚀
             </Typography>
           </Box>
         )}

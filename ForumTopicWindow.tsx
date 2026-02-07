@@ -107,6 +107,8 @@ const ForumTopicWindow: React.FC<ForumTopicWindowProps> = ({
         gap: 1,
         display: 'inline-flex',
         overflow: 'hidden',
+        height: '720px', // Фиксированная высота
+        minHeight: '600px',
       }}
     >
       {/* Верхняя панель с информацией о теме */}
@@ -164,11 +166,11 @@ const ForumTopicWindow: React.FC<ForumTopicWindowProps> = ({
         }}
       />
       
-      {/* Окно сообщений */}
+      {/* Окно сообщений с фиксированной высотой и скроллом */}
       <Box
         sx={{
           alignSelf: 'stretch',
-          flex: '1 1 0',
+          flex: 1, // Занимает все доступное пространство
           padding: 2,
           flexDirection: 'column',
           justifyContent: 'flex-start',
@@ -176,7 +178,6 @@ const ForumTopicWindow: React.FC<ForumTopicWindowProps> = ({
           gap: 2,
           display: 'flex',
           overflowY: 'auto',
-          maxHeight: '400px',
           '&::-webkit-scrollbar': {
             width: '6px',
           },
