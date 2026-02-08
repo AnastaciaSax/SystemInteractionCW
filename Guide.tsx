@@ -342,30 +342,6 @@ const Guide: React.FC = () => {
                 />
               )
             ))}
-
-            {filteredArticles.length > 0 && (
-              <Box
-                sx={{
-                  mt: 6,
-                  p: 3,
-                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                  borderRadius: '15px',
-                  border: '2px solid #F6C4D4',
-                  textAlign: 'center',
-                }}
-              >
-                <Typography
-                  sx={{
-                    color: '#560D30',
-                    fontFamily: '"Nobile", sans-serif',
-                  }}
-                >
-                  Showing {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''}
-                  {searchQuery && ` for "${searchQuery}"`}
-                  {!searchQuery && ` • Total views: ${filteredArticles.reduce((sum, article) => sum + article.views, 0).toLocaleString()}`}
-                </Typography>
-              </Box>
-            )}
           </>
         )}
       </Container>
