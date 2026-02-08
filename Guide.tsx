@@ -79,120 +79,10 @@ const Guide: React.FC = () => {
       setError('Failed to load articles. Please try again later.');
       setIsLoading(false);
       
-      // Fallback to sample data if API fails
-      const sampleArticles: Article[] = [
-        {
-          id: 'art_001',
-          title: 'How To Clean a Pet?',
-          content: 'Complete guide to cleaning LPS figures without damaging them. Use mild soap and soft brush...',
-          category: 'CARE_STORAGE',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article1.png',
-          tags: ['dirtylps', 'clean', 'tlc', 'revive'],
-          published: true,
-          views: 156,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_002',
-          title: 'How To Store: Shelf or Box?',
-          content: 'Pros and cons of different storage methods for LPS collections...',
-          category: 'CARE_STORAGE',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article2.png',
-          tags: ['storage', 'display', 'collection'],
-          published: true,
-          views: 89,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_003',
-          title: 'LPS Revamp: do\'s & dont\'s',
-          content: 'Guide to restoring damaged figures while maintaining their value...',
-          category: 'CARE_STORAGE',
-          authorId: 'user_003',
-          imageUrl: '/assets/article3.png',
-          tags: ['fix', 'revamp', 'restoration'],
-          published: true,
-          views: 203,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_004',
-          title: 'LPS Evolution: 90\'s - today',
-          content: 'History of Littlest Pet Shop from the beginning to modern releases...',
-          category: 'HISTORY_NEWS',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article4.png',
-          tags: ['evolution', 'history', 'brand'],
-          published: true,
-          views: 342,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_005',
-          title: 'BasicFun In Charge?',
-          content: 'Latest news about BasicFun taking over LPS production...',
-          category: 'HISTORY_NEWS',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article5.png',
-          tags: ['nova', 'twist', 'comeback'],
-          published: true,
-          views: 178,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_006',
-          title: '2025: TOP Rarest Pets',
-          content: 'Preview of the rarest LPS figures coming in 2025...',
-          category: 'HISTORY_NEWS',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article6.png',
-          tags: ['news', 'rare', '2025', 'top'],
-          published: true,
-          views: 415,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_007',
-          title: 'Authenticity: Not To Get Bamboozled',
-          content: 'How to spot fake LPS figures and ensure authenticity...',
-          category: 'RULES_POLITICS',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article7.png',
-          tags: ['comparison', 'fake', 'authentic'],
-          published: true,
-          views: 267,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_008',
-          title: 'Society Rules: Secure Trading',
-          content: 'Community guidelines for safe and fair trading...',
-          category: 'RULES_POLITICS',
-          authorId: 'admin_001',
-          imageUrl: '/assets/article8.png',
-          tags: ['rules', 'trade', 'security', 'kids'],
-          published: true,
-          views: 134,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'art_009',
-          title: 'How To Grow the Collection?',
-          content: 'Beginner\'s guide to starting and expanding an LPS collection...',
-          category: 'ADVICE_BEGINNERS',
-          authorId: 'user_003',
-          imageUrl: '/assets/article9.png',
-          tags: ['collect', 'grow', 'start', 'advice'],
-          published: true,
-          views: 189,
-          createdAt: new Date().toISOString(),
-        },
-      ];
-      
-      setArticles(sampleArticles);
-      setFilteredArticles(sampleArticles);
+      // Не используем фоллбэк данные - либо данные из БД, либо ошибка
+      // Оставляем массивы пустыми при ошибке
+      setArticles([]);
+      setFilteredArticles([]);
     }
   };
 
@@ -341,7 +231,7 @@ const Guide: React.FC = () => {
         )}
 
         {/* Loading State - Full page skeleton */}
-        {isLoading && articles.length === 0 ? (
+        {isLoading ? (
           <Box>
             {categories.map((category, index) => (
               <CategorySection
@@ -355,8 +245,8 @@ const Guide: React.FC = () => {
           </Box>
         ) : (
           <>
-            {/* No Results */}
-            {filteredArticles.length === 0 && searchQuery && (
+            {/* No Results or Empty State */}
+            {filteredArticles.length === 0 && (
               <Box
                 sx={{
                   textAlign: 'center',
@@ -366,42 +256,78 @@ const Guide: React.FC = () => {
                   mb: 6,
                 }}
               >
-                <Typography
-                  variant="h5"
-                  sx={{ 
-                    color: '#560D30', 
-                    fontFamily: '"McLaren", cursive',
-                    mb: 2,
-                  }}
-                >
-                  No articles found for "{searchQuery}"
-                </Typography>
-                <Typography 
-                  sx={{ 
-                    color: '#852654', 
-                    fontFamily: '"Nobile", sans-serif',
-                    mb: 3,
-                  }}
-                >
-                  Try a different search term or check back later for new articles.
-                </Typography>
-                <Box
-                  onClick={clearFilters}
-                  sx={{
-                    display: 'inline-block',
-                    backgroundColor: '#F056B7',
-                    color: 'white',
-                    padding: '10px 20px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontFamily: '"Nobile", sans-serif',
-                    '&:hover': {
-                      backgroundColor: '#EC2EA6',
-                    },
-                  }}
-                >
-                  Clear Search
-                </Box>
+                {searchQuery ? (
+                  <>
+                    <Typography
+                      variant="h5"
+                      sx={{ 
+                        color: '#560D30', 
+                        fontFamily: '"McLaren", cursive',
+                        mb: 2,
+                      }}
+                    >
+                      No articles found for "{searchQuery}"
+                    </Typography>
+                    <Typography 
+                      sx={{ 
+                        color: '#852654', 
+                        fontFamily: '"Nobile", sans-serif',
+                        mb: 3,
+                      }}
+                    >
+                      Try a different search term or check back later for new articles.
+                    </Typography>
+                    <Box
+                      onClick={clearFilters}
+                      sx={{
+                        display: 'inline-block',
+                        backgroundColor: '#F056B7',
+                        color: 'white',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontFamily: '"Nobile", sans-serif',
+                        '&:hover': {
+                          backgroundColor: '#EC2EA6',
+                        },
+                      }}
+                    >
+                      Clear Search
+                    </Box>
+                  </>
+                ) : error ? (
+                  <Typography
+                    variant="h5"
+                    sx={{ 
+                      color: '#560D30', 
+                      fontFamily: '"McLaren", cursive',
+                      mb: 2,
+                    }}
+                  >
+                    Failed to load articles
+                  </Typography>
+                ) : (
+                  <>
+                    <Typography
+                      variant="h5"
+                      sx={{ 
+                        color: '#560D30', 
+                        fontFamily: '"McLaren", cursive',
+                        mb: 2,
+                      }}
+                    >
+                      No articles available yet
+                    </Typography>
+                    <Typography 
+                      sx={{ 
+                        color: '#852654', 
+                        fontFamily: '"Nobile", sans-serif',
+                      }}
+                    >
+                      Check back later when articles are added to the database.
+                    </Typography>
+                  </>
+                )}
               </Box>
             )}
 
@@ -417,7 +343,6 @@ const Guide: React.FC = () => {
               )
             ))}
 
-            {/* Stats */}
             {filteredArticles.length > 0 && (
               <Box
                 sx={{
