@@ -1215,3 +1215,100 @@ app.post('/api/trades/:id/finish', async (req: any, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Articles endpoints
+app.get('/api/articles', async (req, res) => {
+  try {
+    const { category } = req.query;
+    
+    let whereClause: any = { published: true };
+    
+    if (category) {
+      whereClause.category = category;
+    }
+    
+    const articles = await prisma.article.findMany({
+      where: whereClause,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            profile: {
+              select: {
+                avatar: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    res.json(articles);
+  } catch (error: any) {
+    console.error('Error fetching articles:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/articles/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const article = await prisma.article.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            profile: {
+              select: {
+                avatar: true,
+                bio: true,
+                rating: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    
+    // Increment views
+    await prisma.article.update({
+      where: { id },
+      data: { views: { increment: 1 } }
+    });
+    
+    res.json({ ...article, views: article.views + 1 });
+  } catch (error: any) {
+    console.error('Error fetching article:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/articles/:id/like', async (req: any, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const userId = decoded.userId;
+    const articleId = req.params.id;
+    
+    // In a real app, you'd store likes in the database
+    // For now, just return success
+    res.json({ success: true, liked: true });
+  } catch (error: any) {
+    console.error('Error liking article:', error);
+    res.status(500).json({ error: error.message });
+  }
+});

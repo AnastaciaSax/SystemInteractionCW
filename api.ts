@@ -144,6 +144,8 @@ export const wishlistAPI = {
 export const articlesAPI = {
   getAll: () => api.get<Article[]>('/articles'),
   getByCategory: (category: string) => api.get<Article[]>(`/articles?category=${category}`),
+  getById: (id: string) => api.get<Article>(`/articles/${id}`),
+  incrementViews: (id: string) => api.post(`/articles/${id}/views`),
 };
 
 // Вспомогательные функции

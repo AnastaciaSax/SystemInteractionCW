@@ -131,3 +131,16 @@ export interface ForumMessage {
   isRead?: boolean;
   likes?: string[]; // Array of user IDs who liked the message
 }
+
+export interface Article {
+  id: string;
+  title: string;
+  content: string;
+  category: 'CARE_STORAGE' | 'HISTORY_NEWS' | 'RULES_POLITICS' | 'ADVICE_BEGINNERS';
+  authorId: string;
+  imageUrl?: string;
+  tags: string[];
+  published: boolean;
+  views: number;
+  createdAt: string;
+}
