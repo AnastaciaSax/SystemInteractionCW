@@ -23,7 +23,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ article, onClick }) => {
 
   // Форматируем теги как в макете
   const formatTags = (tags: string[]) => {
-    return tags.map(tag => `#${tag}`).join(' ');
+    return tags.map(tag => `${tag}`).join(' ');
   };
 
   if (isLoading) {

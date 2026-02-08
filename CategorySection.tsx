@@ -1,3 +1,5 @@
+/// client/src/pages/Guide/components/CategorySection.tsx
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -10,19 +12,21 @@ import {
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { Article } from '../../../services/types';
-import ArticleCard from './ArticleCard';
+import ArticleCard, { ArticleCardSkeleton } from './ArticleCard';
 import SectionPagination from './SectionPagination';
 
 interface CategorySectionProps {
   title: string;
   articles: Article[];
   onArticleClick: (article: Article) => void;
+  isLoading?: boolean;
 }
 
 const CategorySection: React.FC<CategorySectionProps> = ({
   title,
   articles,
   onArticleClick,
+  isLoading = false,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -56,6 +60,33 @@ const CategorySection: React.FC<CategorySectionProps> = ({
       setCurrentPage(currentPage - 1);
     }
   };
+
+  // Если загрузка, показываем скелетоны
+  if (isLoading) {
+    return (
+      <Box sx={{ mb: { xs: 6, md: 8 } }}>
+        <Typography
+          variant="h2"
+          sx={{
+            fontFamily: '"McLaren", cursive',
+            color: '#560D30',
+            fontSize: { xs: '20px', sm: '24px', md: '28px' },
+            fontWeight: 400,
+            mb: 4,
+          }}
+        >
+          {title}
+        </Typography>
+        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+          {[1, 2, 3].map((_, index) => (
+            <Grid item xs={12} sm={6} md={4} key={index}>
+              <ArticleCardSkeleton />
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
+    );
+  }
 
   if (articles.length === 0) return null;
 
@@ -135,22 +166,6 @@ const CategorySection: React.FC<CategorySectionProps> = ({
           </Grid>
         ))}
       </Grid>
-
-      {/* Сообщение если нет статей */}
-      {articles.length === 0 && (
-        <Box
-          sx={{
-            textAlign: 'center',
-            py: 8,
-            backgroundColor: 'rgba(246, 196, 212, 0.2)',
-            borderRadius: '10px',
-          }}
-        >
-          <Typography sx={{ color: '#852654', fontFamily: '"Nobile", sans-serif' }}>
-            No articles found in this category
-          </Typography>
-        </Box>
-      )}
     </Box>
   );
 };
