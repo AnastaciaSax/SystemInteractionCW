@@ -90,25 +90,41 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
             justifyContent: 'center',
             minWidth: { xs: '100%', lg: 'auto' },
             order: { xs: 2, lg: 1 },
+            flexShrink: 0, // Предотвращает сжатие
           }}
         >
-          <Typography
+          {/* Контейнер для звездочки и рейтинга, который предотвращает перенос */}
+          <Box
             sx={{
-              color: 'var(--checked, #EC2EA6)',
-              fontSize: { xs: '48px', md: '64px' },
-              fontFamily: '"Nobile", sans-serif',
-              fontWeight: 400,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap', // Запрещаем перенос текста
+              flexWrap: 'nowrap',
               mb: 1,
             }}
           >
-            ★ {averageRating.toFixed(1)}
-          </Typography>
+            <Typography
+              component="span"
+              sx={{
+                color: 'var(--checked, #EC2EA6)',
+                fontSize: { xs: '48px', md: '64px' },
+                fontFamily: '"Nobile", sans-serif',
+                fontWeight: 400,
+                lineHeight: 1, // Устанавливаем фиксированную высоту строки
+              }}
+            >
+              ★ {averageRating.toFixed(1)}
+            </Typography>
+          </Box>
+          
           <Typography
             sx={{
               color: '#852654',
               fontSize: '16px',
               fontFamily: '"Nobile", sans-serif',
               fontStyle: 'italic',
+              textAlign: 'center',
             }}
           >
             Based on {ratings.length} {ratings.length === 1 ? 'review' : 'reviews'}
@@ -179,6 +195,9 @@ const FeedbackSection: React.FC<FeedbackSectionProps> = ({ user, ratings }) => {
                             fontFamily: '"Nobile", sans-serif',
                             fontWeight: 700,
                             lineHeight: '30px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
                           }}
                         >
                           {rating.rater?.username}
