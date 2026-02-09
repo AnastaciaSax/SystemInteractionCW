@@ -1,3 +1,4 @@
+// client/src/pages/Wishlist/Wishlist.tsx
 import React, { useState, useEffect } from 'react';
 import { Box, Container } from '@mui/material';
 import Header from '../../components/Layout/Header';
@@ -8,7 +9,18 @@ import WishlistItemList from './components/WishlistItemList';
 import Pagination from './components/Pagination';
 import Notification from '../../components/ui/Notification';
 import { wishlistAPI, figurinesAPI } from '../../services/api';
+import { loadUISetting, saveUISetting } from '../../utils/uiSettings';
 import './Wishlist.css';
+
+// Дефолтные фильтры для Wishlist
+const DEFAULT_FILTERS = {
+  search: '',
+  yearRange: 'ALL',
+  rarity: 'ALL',
+  mold: 'ALL',
+  view: 'ALL',
+  sort: 'newest'
+};
 
 const Wishlist: React.FC = () => {
   const [figurines, setFigurines] = useState<any[]>([]);
@@ -24,14 +36,10 @@ const Wishlist: React.FC = () => {
     type: 'info',
   });
 
-  const [filters, setFilters] = useState({
-    search: '',
-    yearRange: 'ALL',
-    rarity: 'ALL',
-    mold: 'ALL',
-    view: 'ALL',
-    sort: 'newest'
-  });
+  // Загружаем фильтры из localStorage
+  const [filters, setFilters] = useState(() => 
+    loadUISetting('wishlistFilters', DEFAULT_FILTERS)
+  );
   
   const [pagination, setPagination] = useState({
     page: 1,
@@ -39,6 +47,11 @@ const Wishlist: React.FC = () => {
     pages: 1,
     limit: 6
   });
+
+  // Сохраняем фильтры при изменении
+  useEffect(() => {
+    saveUISetting('wishlistFilters', filters);
+  }, [filters]);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({
@@ -130,18 +143,6 @@ const Wishlist: React.FC = () => {
       case '2018-2022': return [2018, 2022];
       case '2023-2025': return [2023, 2025];
       default: return [2000, 2025];
-    }
-  };
-
-  // Преобразование диапазона лет в серии
-  const getSeriesFromYearRange = (range: string): string => {
-    switch (range) {
-      case '2005-2008': return 'G2';
-      case '2009-2013': return 'G3';
-      case '2014-2017': return 'G4';
-      case '2018-2022': return 'G6';
-      case '2023-2025': return 'G7';
-      default: return '';
     }
   };
 

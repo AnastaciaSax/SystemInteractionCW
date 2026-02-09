@@ -161,3 +161,39 @@
     flex: none;
   }
 }
+/* Прокрутка в окне сообщений */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: rgba(240, 94, 186, 0.1);
+  border-radius: 3px;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: #F05EBA;
+  border-radius: 3px;
+}
+
+/* Анимация для уведомлений */
+.notification-slide {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

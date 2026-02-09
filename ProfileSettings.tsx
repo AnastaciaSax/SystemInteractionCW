@@ -9,10 +9,14 @@ import {
   FormControl, 
   InputLabel,
   Paper,
+  CircularProgress,
+  Divider,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
-// Импортируем Grid
+import RestartAltIcon from '@mui/icons-material/RestartAlt'; 
+import SettingsIcon from '@mui/icons-material/Settings';
 import { Grid } from '@mui/material';
+import { resetUISettings } from '../../../utils/uiSettings';
 
 interface ProfileSettingsProps {
   user: any;
@@ -34,6 +38,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
     location: user?.profile?.location || '',
     region: user?.region || 'EU',
   });
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleChange = (field: string) => (event: any) => {
     setFormData({
@@ -55,6 +60,32 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
       onError('Failed to save profile settings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetSettings = () => {
+    if (window.confirm(
+      'Are you sure you want to reset all UI settings?\n\n' +
+      'This will reset:\n' +
+      '• All filters and sort orders\n' +
+      '• Search queries\n' +
+      '• UI preferences\n\n' +
+      'Your account data, chats, and favorites will NOT be affected.'
+    )) {
+      setIsResetting(true);
+      
+      // Сбрасываем настройки UI
+      resetUISettings();
+      
+      // Показываем уведомление
+      onSuccess('✅ All UI settings have been reset successfully!');
+      
+      // Обновляем страницу через 2 секунды, чтобы изменения применились
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
+      setIsResetting(false);
     }
   };
 
@@ -81,6 +112,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         Profile Settings ⚙️
       </Typography>
 
+      {/* Форма редактирования профиля */}
       <Paper
         elevation={0}
         sx={{
@@ -88,6 +120,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
           borderRadius: '20px',
           padding: { xs: 3, md: 5 },
           border: '2px solid rgba(236, 46, 166, 0.2)',
+          mb: 4,
         }}
       >
         <Box component="form" onSubmit={handleSubmit}>
@@ -207,10 +240,97 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
         </Box>
       </Paper>
 
-      {/* Tips */}
-      <Box
+      {/* Отдельная секция для сброса UI настроек */}
+      <Paper
+        elevation={0}
         sx={{
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 240, 245, 0.9) 100%)',
+          borderRadius: '20px',
+          padding: { xs: 3, md: 5 },
+          border: '2px solid rgba(255, 107, 107, 0.3)',
+          mb: 4,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <SettingsIcon sx={{ color: '#FF6B6B', fontSize: 30 }} />
+          <Typography
+            variant="h5"
+            sx={{
+              color: '#FF6B6B',
+              fontSize: { xs: '24px', md: '28px' },
+              fontFamily: '"McLaren", cursive',
+              fontWeight: 400,
+            }}
+          >
+            Interface Storage
+          </Typography>
+        </Box>
+
+        <Typography
+          sx={{
+            color: '#852654',
+            fontSize: '16px',
+            fontFamily: '"Nobile", sans-serif',
+            mb: 3,
+            lineHeight: 1.6,
+          }}
+        >
+          Reset all interface preferences including filters, sort orders, and search queries.
+          This will restore all UI settings to their default values.
+        </Typography>
+
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
           mt: 4,
+          pt: 3,
+          borderTop: '1px solid rgba(255, 107, 107, 0.2)'
+        }}>
+          <Typography
+            sx={{
+              color: '#852654',
+              fontSize: '14px',
+              fontFamily: '"Nobile", sans-serif',
+              fontStyle: 'italic',
+              maxWidth: '60%',
+            }}
+          >
+            ⚠️ This will not affect your account data, chats, or favorites.
+          </Typography>
+          
+          <Button
+            variant="outlined"
+            onClick={handleResetSettings}
+            disabled={isResetting}
+            startIcon={isResetting ? <CircularProgress size={20} /> : <RestartAltIcon />}
+            sx={{
+              borderColor: '#FF6B6B',
+              color: '#FF6B6B',
+              borderRadius: '12px',
+              fontFamily: '"McLaren", cursive',
+              fontWeight: 400,
+              textTransform: 'none',
+              padding: '10px 24px',
+              fontSize: '16px',
+              '&:hover': {
+                borderColor: '#FF5252',
+                backgroundColor: 'rgba(255, 107, 107, 0.04)',
+              },
+              '&:disabled': {
+                opacity: 0.6,
+              },
+            }}
+          >
+            {isResetting ? 'Resetting...' : 'Reset UI Settings'}
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Tips */}
+      <Paper
+        elevation={0}
+        sx={{
           p: 3,
           background: 'rgba(153, 242, 247, 0.2)',
           borderRadius: '15px',
@@ -226,12 +346,13 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
+            lineHeight: 1.6,
           }}
         >
           💡 <strong>Tip:</strong> Complete your profile to earn the "Profile Customizer" achievement! 
           More details = better connections with fellow collectors!
         </Typography>
-      </Box>
+      </Paper>
     </Box>
   );
 };

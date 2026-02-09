@@ -1,3 +1,4 @@
+// client/src/pages/Guide/Guide.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -15,6 +16,7 @@ import ArticleModal from './components/ArticleModal';
 import Notification, { NotificationType } from '../../components/ui/Notification';
 import { articlesAPI } from '../../services/api';
 import { Article } from '../../services/types';
+import { loadUISetting, saveUISetting } from '../../utils/uiSettings';
 
 const Guide: React.FC = () => {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -147,25 +149,23 @@ const Guide: React.FC = () => {
     setSearchQuery('');
     setFilteredArticles(articles);
     
-    // Clear search from localStorage
-    localStorage.removeItem('guideSearchQuery');
+    // Clear search from localStorage using uiSettings
+    saveUISetting('guideSearchQuery', '');
   };
 
-  // Save search query to localStorage
+  // Load search query from localStorage on mount using uiSettings
   useEffect(() => {
-    if (searchQuery.trim()) {
-      localStorage.setItem('guideSearchQuery', searchQuery);
-    }
-  }, [searchQuery]);
-
-  // Load search query from localStorage on mount
-  useEffect(() => {
-    const savedQuery = localStorage.getItem('guideSearchQuery');
-    if (savedQuery) {
+    const savedQuery = loadUISetting('guideSearchQuery', '');
+    if (savedQuery && articles.length > 0) {
       setSearchQuery(savedQuery);
       handleSearch(savedQuery);
     }
-  }, [articles]);
+  }, [articles]); // Только при изменении articles
+
+  // Save search query to localStorage using uiSettings
+  useEffect(() => {
+    saveUISetting('guideSearchQuery', searchQuery);
+  }, [searchQuery]);
 
   const categories = groupArticlesByCategory();
 
