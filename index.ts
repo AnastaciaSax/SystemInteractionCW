@@ -96,6 +96,11 @@ app.use('/api/auth', authRoutes);
 import chatRoutes from './routes/chat';
 app.use('/api/chat', chatRoutes);
 
+import adminRoutes from './routes/admin';
+app.use('/api/admin', adminRoutes);
+
+app.use('/uploads', express.static('uploads'));
+
 // Основные эндпоинты
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
@@ -1219,16 +1224,10 @@ app.post('/api/trades/:id/finish', async (req: any, res) => {
 // Articles endpoints
 app.get('/api/articles', async (req, res) => {
   try {
-    const { category } = req.query;
-    
-    let whereClause: any = { published: true };
-    
-    if (category) {
-      whereClause.category = category;
-    }
+    console.log('📚 Fetching articles from database...');
     
     const articles = await prisma.article.findMany({
-      where: whereClause,
+      where: { published: true },
       include: {
         author: {
           select: {
@@ -1245,10 +1244,14 @@ app.get('/api/articles', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
+    console.log(`✅ Found ${articles.length} articles`);
     res.json(articles);
   } catch (error: any) {
-    console.error('Error fetching articles:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error fetching articles:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
@@ -1276,7 +1279,10 @@ app.get('/api/articles/:id', async (req, res) => {
     });
     
     if (!article) {
-      return res.status(404).json({ error: 'Article not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Article not found' 
+      });
     }
     
     // Increment views
@@ -1285,30 +1291,49 @@ app.get('/api/articles/:id', async (req, res) => {
       data: { views: { increment: 1 } }
     });
     
-    res.json({ ...article, views: article.views + 1 });
+    res.json({
+      ...article,
+      views: article.views + 1
+    });
   } catch (error: any) {
     console.error('Error fetching article:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
-app.post('/api/articles/:id/like', async (req: any, res) => {
+app.post('/api/articles/:id/views', async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
+    const { id } = req.params;
     
-    if (!token) {
-      return res.status(401).json({ error: 'Not authenticated' });
+    const article = await prisma.article.findUnique({
+      where: { id }
+    });
+    
+    if (!article) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Article not found' 
+      });
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const userId = decoded.userId;
-    const articleId = req.params.id;
+    // Increment views
+    const updatedArticle = await prisma.article.update({
+      where: { id },
+      data: { views: { increment: 1 } }
+    });
     
-    // In a real app, you'd store likes in the database
-    // For now, just return success
-    res.json({ success: true, liked: true });
+    res.json({
+      success: true,
+      views: updatedArticle.views
+    });
   } catch (error: any) {
-    console.error('Error liking article:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error incrementing article views:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });

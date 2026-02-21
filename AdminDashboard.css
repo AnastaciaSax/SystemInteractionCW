@@ -1,0 +1,109 @@
+.admin-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #FFF1F8 0%, #E9C4D9 30%, #96F2F7 100%);
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Стили для таблиц */
+.admin-table {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.admin-table .MuiTableRow-root:hover {
+  background-color: rgba(236, 46, 166, 0.03);
+}
+
+/* Стили для карточек */
+.stat-card {
+  transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для вкладок */
+.admin-tabs .MuiTab-root {
+  transition: all 0.3s ease;
+}
+
+.admin-tabs .MuiTab-root:hover {
+  background-color: rgba(236, 46, 166, 0.05);
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+  .admin-dashboard .MuiContainer-root {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .admin-dashboard .MuiGrid-container {
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+  
+  .admin-dashboard .MuiGrid-item {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard .page-banner h1 {
+    font-size: 2rem;
+  }
+}
+
+/* Кастомный скроллбар */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(236, 46, 166, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #EC2EA6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #F056B7;
+}
