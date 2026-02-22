@@ -114,10 +114,4 @@ export const adminAPI = {
     api.post<UploadImageResponse>('/admin/upload/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }).then(res => res.data) as Promise<UploadImageResponse>,
-
-  getSettings: (): Promise<any> =>
-    api.get('/admin/settings').then(res => res.data) as Promise<any>,
-
-  updateSettings: (data: any): Promise<any> =>
-    api.put('/admin/settings', data).then(res => res.data) as Promise<any>,
 };

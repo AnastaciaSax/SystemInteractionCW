@@ -13,14 +13,12 @@ import {
   People as PeopleIcon,
   Article as ArticleIcon,
   TrendingUp as TrendingUpIcon,
-  Settings as SettingsIcon,
   Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import OverviewTab from './tabs/OverviewTab';
 import UsersTab from './tabs/UsersTab';
 import ArticlesTab from './tabs/ArticlesTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
-import SettingsTab from './tabs/SettingsTab';
 import ReportsTab from './tabs/ReportsTab';
 
 interface DashboardTabsProps {
@@ -46,8 +44,7 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({
     { id: 'users', label: 'Users', icon: <PeopleIcon /> },
     { id: 'articles', label: 'Articles', icon: <ArticleIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <TrendingUpIcon /> },
-    { id: 'reports', label: 'Reports', icon: <ReceiptIcon /> },
-    { id: 'settings', label: 'Settings', icon: <SettingsIcon /> }
+    { id: 'reports', label: 'Reports', icon: <ReceiptIcon /> }
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
@@ -87,8 +84,6 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({
             onShowNotification={onShowNotification}
           />
         );
-      case 'settings':
-        return <SettingsTab />;
       default:
         return (
           <Box sx={{ p: 3, textAlign: 'center' }}>
