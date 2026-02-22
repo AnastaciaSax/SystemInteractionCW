@@ -1,6 +1,5 @@
 import React from 'react';
-import { Box, Grid, Paper, Typography, Divider, List, ListItem, ListItemText, Chip } from '@mui/material';
-import { Timeline, TimelineItem, TimelineSeparator, TimelineDot, TimelineConnector, TimelineContent } from '@mui/lab';
+import { Box, Grid, Paper, Typography, Divider, Chip, Avatar } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ArticleIcon from '@mui/icons-material/Article';
@@ -61,39 +60,34 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ stats, recentActivity }) => {
           </Paper>
         </Grid>
 
-        {/* Недавняя активность */}
+        {/* Недавняя активность - кастомный список вместо Timeline */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3, borderRadius: 2, height: '100%' }}>
+          <Paper sx={{ p: 3, borderRadius: 2, height: '100%', maxHeight: 400, overflow: 'auto' }}>
             <Typography variant="h6" sx={{ color: '#560D30', mb: 2 }}>
               Recent Activity
             </Typography>
             <Divider sx={{ mb: 2 }} />
-            <Timeline position="right" sx={{ p: 0, m: 0 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {recentActivity.slice(0, 5).map((activity: any, index: number) => (
-                <TimelineItem key={index}>
-                  <TimelineSeparator>
-                    <TimelineDot sx={{ bgcolor: 'transparent', boxShadow: 'none', p: 0 }}>
-                      {getActivityIcon(activity.type)}
-                    </TimelineDot>
-                    {index < 4 && <TimelineConnector sx={{ bgcolor: '#EC2EA6' }} />}
-                  </TimelineSeparator>
-                  <TimelineContent>
+                <Box key={index} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <Avatar sx={{ bgcolor: 'transparent', width: 40, height: 40 }}>
+                    {getActivityIcon(activity.type)}
+                  </Avatar>
+                  <Box sx={{ flex: 1 }}>
                     <Typography variant="body2" fontWeight="bold">{activity.title}</Typography>
-                    <Typography variant="caption" sx={{ color: '#852654' }}>
+                    <Typography variant="caption" sx={{ color: '#852654', display: 'block' }}>
                       {activity.description}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
-                      <Chip
-                        label={new Date(activity.timestamp).toLocaleDateString()}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: '0.65rem' }}
-                      />
-                    </Box>
-                  </TimelineContent>
-                </TimelineItem>
+                    <Chip
+                      label={new Date(activity.timestamp).toLocaleDateString()}
+                      size="small"
+                      variant="outlined"
+                      sx={{ fontSize: '0.65rem', mt: 0.5 }}
+                    />
+                  </Box>
+                </Box>
               ))}
-            </Timeline>
+            </Box>
           </Paper>
         </Grid>
       </Grid>
