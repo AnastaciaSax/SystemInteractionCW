@@ -49,25 +49,6 @@ const QuickActions: React.FC<QuickActionsProps> = ({ onAction }) => {
           Export
         </Button>
       </Tooltip>
-
-      <Tooltip title="Clear Cache">
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<DeleteSweepIcon />}
-          onClick={() => onAction('clear-cache')}
-          sx={{
-            borderColor: '#FF9800',
-            color: '#FF9800',
-            '&:hover': {
-              borderColor: '#FFB74D',
-              backgroundColor: 'rgba(255, 152, 0, 0.05)'
-            }
-          }}
-        >
-          Clear Cache
-        </Button>
-      </Tooltip>
     </Box>
   );
 };

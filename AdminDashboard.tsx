@@ -94,7 +94,7 @@ const [statsData, activityData] = await Promise.all([
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleExport = (format: 'pdf' | 'csv' | 'excel', reportType: string) => {
+  const handleExport = (format: 'pdf' | 'csv', reportType: string) => {
     adminAPI.exportReport(reportType, format)
       .then(() => {
         showNotification(`Report exported successfully as ${format.toUpperCase()}`, 'success');
@@ -114,11 +114,6 @@ const [statsData, activityData] = await Promise.all([
       case 'export':
         setExportModalOpen(true);
         break;
-      case 'clear-cache':
-        adminAPI.clearCache()
-          .then(() => showNotification('Cache cleared successfully', 'success'))
-          .catch(() => showNotification('Failed to clear cache', 'error'));
-        break;
       default:
         break;
     }
@@ -132,7 +127,7 @@ const [statsData, activityData] = await Promise.all([
     <Box
       sx={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #FFF1F8 0%, #E9C4D9 30%, #96F2F7 100%)',
+                background: 'linear-gradient(90deg, #FFF1F8 0%, #E9C4D9 100%)',
         display: 'flex',
         flexDirection: 'column'
       }}
@@ -231,7 +226,7 @@ const [statsData, activityData] = await Promise.all([
                 value={stats.totalArticles}
                 change={stats.articleGrowth}
                 icon={<ArticleIcon />}
-                color="#96F2F7"
+                color="#3960ba"
                 onClick={() => setActiveTab('articles')}
               />
             </Grid>
