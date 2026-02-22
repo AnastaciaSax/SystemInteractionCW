@@ -44,3 +44,5 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+## Figma mock up - [MOCK UPER](https://www.figma.com/design/gcPBXNdgiFFH9rdBIW8xuT/sys-interaction--cw-?node-id=0-1&p=f&t=5LLG50eEdWIqklHL-0).
