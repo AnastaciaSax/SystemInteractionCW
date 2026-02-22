@@ -76,14 +76,10 @@ router.get('/dashboard/stats', async (req, res) => {
   }
 });
 
-// Недавняя активность
 router.get('/activity/recent', async (req, res) => {
   try {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    // Получаем последних пользователей (максимум 10)
+    // Получаем последних пользователей (без ограничения по дате)
     const recentUsers = await prisma.user.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
       select: {
         id: true,
         username: true,
@@ -94,9 +90,7 @@ router.get('/activity/recent', async (req, res) => {
       take: 10,
     });
 
-    // Последние объявления (максимум 10)
     const recentTrades = await prisma.tradeAd.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
       select: {
         id: true,
         title: true,
@@ -107,9 +101,7 @@ router.get('/activity/recent', async (req, res) => {
       take: 10,
     });
 
-    // Последние статьи (максимум 10)
     const recentArticles = await prisma.article.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
       select: {
         id: true,
         title: true,
@@ -120,7 +112,6 @@ router.get('/activity/recent', async (req, res) => {
       take: 10,
     });
 
-    // Формируем единый массив активностей
     const activities: any[] = [
       ...recentUsers.map(u => ({
         type: 'USER_REGISTERED',
@@ -148,7 +139,6 @@ router.get('/activity/recent', async (req, res) => {
       })),
     ];
 
-    // Сортируем по дате (новые сверху) и берём последние 20
     activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     res.json(activities.slice(0, 20));
   } catch (error: any) {
@@ -337,14 +327,18 @@ router.delete('/articles/:id', async (req, res) => {
   }
 });
 
-// Экспорт отчетов
 router.get('/reports/export', async (req, res) => {
   try {
     const { type, format } = req.query;
-    
+
+    if (format !== 'pdf' && format !== 'csv') {
+      return res.status(400).json({ error: 'Only PDF and CSV formats are supported' });
+    }
+
     let data: any[] = [];
-    let filename = `report-${type}`;
-    
+    let totals: any = {};
+    let filename = `report-${type}-${new Date().toISOString().split('T')[0]}`;
+
     switch (type) {
       case 'users':
         data = await prisma.user.findMany({
@@ -358,130 +352,165 @@ router.get('/reports/export', async (req, res) => {
             profile: {
               select: {
                 tradeCount: true,
-                rating: true
-              }
-            }
-          }
+                rating: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
         });
+        totals = {
+          totalUsers: data.length,
+          verifiedUsers: data.filter((u) => u.isVerified).length,
+          totalTrades: data.reduce((sum, u) => sum + (u.profile?.tradeCount || 0), 0),
+          avgRating:
+            data.length > 0
+              ? (
+                  data.reduce((sum, u) => sum + (u.profile?.rating || 0), 0) / data.length
+                ).toFixed(2)
+              : 0,
+        };
         break;
-        
+
       case 'trades':
         data = await prisma.tradeAd.findMany({
           include: {
-            user: {
-              select: {
-                username: true,
-                email: true
-              }
-            },
-            figurine: true
-          }
+            user: { select: { username: true, email: true } },
+            figurine: { select: { name: true, series: true } },
+          },
+          orderBy: { createdAt: 'desc' },
         });
+        totals = {
+          totalTrades: data.length,
+          active: data.filter((t) => t.status === 'ACTIVE').length,
+          completed: data.filter((t) => t.status === 'COMPLETED').length,
+          pending: data.filter((t) => t.status === 'PENDING').length,
+          cancelled: data.filter((t) => t.status === 'CANCELLED').length,
+        };
         break;
-        
+
       case 'articles':
         data = await prisma.article.findMany({
           include: {
-            author: {
-              select: {
-                username: true
-              }
-            }
-          }
+            author: { select: { username: true } },
+          },
+          orderBy: { createdAt: 'desc' },
         });
+        totals = {
+          totalArticles: data.length,
+          published: data.filter((a) => a.published).length,
+          totalViews: data.reduce((sum, a) => sum + a.views, 0),
+        };
         break;
-        
+
       default:
         return res.status(400).json({ error: 'Invalid report type' });
     }
-    
+
     if (format === 'pdf') {
-      const doc = new PDFDocument();
-      
-      // Настраиваем заголовки для response
+      const doc = new PDFDocument({ margin: 50 });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
-      
-      // Создаем PDF
       doc.pipe(res);
-      
-      doc.fontSize(25).text('Collector Mingle Report', { align: 'center' });
+
+      // Заголовок
+      doc.fontSize(20).font('Helvetica-Bold').text('Collector Mingle Report', { align: 'center' });
       doc.moveDown();
-      doc.fontSize(12).text(`Report Type: ${type}`, { align: 'center' });
-      doc.fontSize(12).text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.fontSize(12).font('Helvetica').text(`Report Type: ${type}`, { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
       doc.moveDown();
-      
-      // Добавляем данные
+
+      // Итоги
+      doc.fontSize(14).font('Helvetica-Bold').text('Summary', { underline: true });
+      doc.fontSize(10).font('Helvetica');
+      Object.entries(totals).forEach(([key, value]) => {
+        doc.text(
+          `${key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}: ${value}`
+        );
+      });
+      doc.moveDown();
+
+      // Детальные данные
       if (data.length > 0) {
-        const headers = Object.keys(data[0]);
-        let yPosition = doc.y;
-        
-        headers.forEach(header => {
-          doc.fontSize(10).text(header, 50, yPosition, { width: 150 });
-          yPosition += 20;
-        });
-        
+        doc.fontSize(14).font('Helvetica-Bold').text('Details', { underline: true });
         doc.moveDown();
-        
-        data.forEach((item: any, index: number) => {
-          yPosition = doc.y;
-          headers.forEach(header => {
-            const value = item[header] ? String(item[header]) : '';
-            doc.fontSize(8).text(value, 50, yPosition, { width: 150 });
-            yPosition += 15;
+
+        // Определяем заголовки (исключаем вложенные объекты)
+        const sample = data[0];
+        const headers = Object.keys(sample).filter(
+          (key) => !['profile', 'user', 'figurine', 'author'].includes(key)
+        );
+        const columnWidth = 150;
+
+        // Заголовки таблицы
+        doc.fontSize(8).font('Helvetica-Bold');
+        let y = doc.y;
+        headers.forEach((header, i) => {
+          doc.text(header, 50 + i * columnWidth, y, { width: columnWidth, align: 'left' });
+        });
+        doc.moveDown();
+        doc.fontSize(7).font('Helvetica');
+
+        // Строки
+        data.forEach((item, index) => {
+          let yPos = doc.y;
+          headers.forEach((header, i) => {
+            let value = item[header];
+            if (header === 'createdAt') value = new Date(value).toLocaleDateString();
+            if (header === 'profile') value = `Trades: ${item.profile?.tradeCount}, Rating: ${item.profile?.rating}`;
+            if (header === 'user') value = item.user?.username || '';
+            if (header === 'figurine') value = item.figurine?.name || '';
+            if (header === 'author') value = item.author?.username || '';
+            doc.text(String(value || ''), 50 + i * columnWidth, yPos, { width: columnWidth, align: 'left' });
           });
           doc.moveDown();
+          if (doc.y > 700) {
+            doc.addPage();
+            y = 50;
+          }
         });
+      } else {
+        doc.text('No data available.');
       }
-      
+
       doc.end();
-      
     } else if (format === 'csv') {
       if (data.length === 0) {
         return res.status(404).json({ error: 'No data to export' });
       }
-      
-      const headers = Object.keys(data[0]);
-      const csvRows = [
-        headers.join(','),
-        ...data.map((row: any) =>
-          headers.map(header => {
-            const value = row[header];
-            return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
-          }).join(',')
-        )
-      ];
-      
+
+      // Заголовки (плоские)
+      const sample = data[0];
+      const headers = Object.keys(sample).filter((key) => typeof sample[key] !== 'object');
+      const csvRows = [];
+      csvRows.push(headers.join(','));
+
+      data.forEach((row) => {
+        const values = headers.map((header) => {
+          let val = row[header];
+          if (header === 'createdAt') val = new Date(val).toLocaleDateString();
+          if (val === null || val === undefined) val = '';
+          return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+        });
+        csvRows.push(values.join(','));
+      });
+
+      // Итоговая строка
+      const totalRow = headers.map((header) => {
+        if (header === 'id' || header === 'username' || header === 'email' || header === 'role') return '';
+        if (header === 'isVerified') return totals.verifiedUsers || '';
+        if (header === 'tradeCount') return totals.totalTrades || '';
+        if (header === 'rating') return totals.avgRating || '';
+        if (header === 'status') return `Active:${totals.active || 0}`;
+        return '';
+      });
+      csvRows.push(['TOTAL', ...totalRow.slice(1)].join(','));
+
       const csv = csvRows.join('\n');
-      
+
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
       res.send(csv);
-      
-    } else if (format === 'excel') {
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Report');
-      
-      if (data.length > 0) {
-        const headers = Object.keys(data[0]);
-        worksheet.addRow(headers);
-        
-        data.forEach((item: any) => {
-          const row = headers.map(header => item[header]);
-          worksheet.addRow(row);
-        });
-      }
-      
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
-      
-      await workbook.xlsx.write(res);
-      res.end();
-      
-    } else {
-      res.status(400).json({ error: 'Invalid format' });
     }
-    
   } catch (error: any) {
     console.error('Export error:', error);
     res.status(500).json({ error: error.message });

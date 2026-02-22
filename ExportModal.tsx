@@ -14,17 +14,16 @@ import {
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import TableChartIcon from '@mui/icons-material/TableChart';
-import GridOnIcon from '@mui/icons-material/GridOn';
 
 interface ExportModalProps {
   open: boolean;
   onClose: () => void;
-  onExport: (format: 'pdf' | 'csv' | 'excel', reportType: string) => void;
+  onExport: (format: 'pdf' | 'csv', reportType: string) => void;
 }
 
 const ExportModal: React.FC<ExportModalProps> = ({ open, onClose, onExport }) => {
   const [reportType, setReportType] = useState('users');
-  const [format, setFormat] = useState<'pdf' | 'csv' | 'excel'>('pdf');
+  const [format, setFormat] = useState<'pdf' | 'csv'>('pdf');
 
   const handleExport = () => {
     onExport(format, reportType);
@@ -56,7 +55,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, onClose, onExport }) =>
             <Select
               value={format}
               label="Format"
-              onChange={(e) => setFormat(e.target.value as any)}
+              onChange={(e) => setFormat(e.target.value as 'pdf' | 'csv')}
             >
               <MenuItem value="pdf">
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -68,12 +67,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ open, onClose, onExport }) =>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <TableChartIcon fontSize="small" sx={{ color: '#4CAF50' }} />
                   CSV File
-                </Box>
-              </MenuItem>
-              <MenuItem value="excel">
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <GridOnIcon fontSize="small" sx={{ color: '#2196F3' }} />
-                  Excel Spreadsheet
                 </Box>
               </MenuItem>
             </Select>

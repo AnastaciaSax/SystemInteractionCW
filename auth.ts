@@ -3,9 +3,47 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { Request, Response, NextFunction } from 'express';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
+export const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false,
+        error: 'Authentication required' 
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    
+    // Добавляем пользователя в запрос
+    req.user = decoded;
+    next();
+  } catch (error: any) {
+    console.error('Authentication error:', error);
+    res.status(401).json({ 
+      success: false,
+      error: 'Invalid or expired token' 
+    });
+  }
+};
 
 const verificationCodes = new Map<string, { 
   code: string; 
@@ -245,33 +283,22 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
     const user = await prisma.user.findUnique({
       where: { email },
       include: { profile: true }
     });
-    
     if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'Invalid credentials' 
-      });
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
-    
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(401).json({ 
-        success: false,
-        error: 'Invalid credentials' 
-      });
+      return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
-    
     const token = jwt.sign(
       { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     );
-    
     res.json({
       success: true,
       token,
@@ -280,15 +307,32 @@ router.post('/login', async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
+        isVerified: user.isVerified,   // <-- добавляем
         profile: user.profile
       }
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false,
-      error: error.message || 'Login failed' 
+    res.status(500).json({ success: false, error: error.message || 'Login failed' });
+  }
+});
+
+// Получение текущего пользователя по токену
+router.get('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: { profile: true }
     });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    // Убираем пароль из ответа
+    const { password, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (error: any) {
+    console.error('Error in /auth/me:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

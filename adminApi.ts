@@ -91,7 +91,7 @@ export const adminAPI = {
   getAnalytics: (period: string = 'month'): Promise<any> =>
     api.get(`/admin/analytics?period=${period}`).then(res => res.data) as Promise<any>,
 
-  exportReport: (reportType: string, format: 'pdf' | 'csv' | 'excel'): Promise<Blob> =>
+   exportReport: (reportType: string, format: 'pdf' | 'csv'): Promise<Blob> =>
     api.get(`/admin/reports/export?type=${reportType}&format=${format}`, {
       responseType: 'blob'
     }).then(res => {

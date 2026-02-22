@@ -123,7 +123,6 @@ const [filteredUsers, setFilteredUsers] = useState<UserListItem[]>([]);
       email: user.email,
       role: user.role,
       isVerified: user.isVerified,
-      isActive: user.isActive !== false
     });
     setEditDialogOpen(true);
     handleMenuClose();
@@ -460,16 +459,6 @@ const [filteredUsers, setFilteredUsers] = useState<UserListItem[]>([]);
                 />
               }
               label="Verified Account"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={editForm.isActive !== false}
-                  onChange={(e) => setEditForm({ ...editForm, isActive: e.target.checked })}
-                  color="primary"
-                />
-              }
-              label="Active Account"
             />
           </Box>
         </DialogContent>

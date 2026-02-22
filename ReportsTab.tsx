@@ -23,17 +23,17 @@ interface ReportsTabProps {
 const ReportsTab: React.FC<ReportsTabProps> = ({ onShowNotification }) => {
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleExport = async (type: string, format: 'pdf' | 'csv' | 'excel') => {
-    setLoading(`${type}-${format}`);
-    try {
-      await adminAPI.exportReport(type, format);
-      onShowNotification(`Report exported successfully as ${format.toUpperCase()}`, 'success');
-    } catch (error) {
-      onShowNotification('Export failed', 'error');
-    } finally {
-      setLoading(null);
-    }
-  };
+  const handleExport = async (type: string, format: 'pdf' | 'csv') => {
+  setLoading(`${type}-${format}`);
+  try {
+    await adminAPI.exportReport(type, format);
+    onShowNotification(`Report exported successfully as ${format.toUpperCase()}`, 'success');
+  } catch (error) {
+    onShowNotification('Export failed', 'error');
+  } finally {
+    setLoading(null);
+  }
+};
 
   const reports = [
     { id: 'users', title: 'Users Report', description: 'List of all users with profile data' },
@@ -77,15 +77,6 @@ const ReportsTab: React.FC<ReportsTabProps> = ({ onShowNotification }) => {
                     sx={{ color: '#4CAF50' }}
                   >
                     CSV
-                  </Button>
-                  <Button
-                    size="small"
-                    startIcon={<GridOnIcon />}
-                    onClick={() => handleExport(report.id, 'excel')}
-                    disabled={loading === `${report.id}-excel`}
-                    sx={{ color: '#2196F3' }}
-                  >
-                    Excel
                   </Button>
                 </Box>
               </CardContent>
