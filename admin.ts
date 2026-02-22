@@ -79,47 +79,80 @@ router.get('/dashboard/stats', async (req, res) => {
 // Недавняя активность
 router.get('/activity/recent', async (req, res) => {
   try {
-    const activities = await prisma.$queryRaw`
-      SELECT 
-        'USER_REGISTERED' as type,
-        id as entity_id,
-        username as title,
-        'New user registered' as description,
-        email as details,
-        created_at as timestamp
-      FROM "User"
-      WHERE created_at >= NOW() - INTERVAL '7 days'
-      
-      UNION ALL
-      
-      SELECT 
-        'TRADE_CREATED' as type,
-        id as entity_id,
-        title,
-        'New trade ad created' as description,
-        condition as details,
-        created_at as timestamp
-      FROM "TradeAd"
-      WHERE created_at >= NOW() - INTERVAL '7 days'
-      
-      UNION ALL
-      
-      SELECT 
-        'ARTICLE_PUBLISHED' as type,
-        id as entity_id,
-        title,
-        'New article published' as description,
-        category as details,
-        created_at as timestamp
-      FROM "Article"
-      WHERE created_at >= NOW() - INTERVAL '7 days'
-      
-      ORDER BY timestamp DESC
-      LIMIT 20
-    `;
-    
-    res.json(activities);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Получаем последних пользователей (максимум 10)
+    const recentUsers = await prisma.user.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    // Последние объявления (максимум 10)
+    const recentTrades = await prisma.tradeAd.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: {
+        id: true,
+        title: true,
+        condition: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    // Последние статьи (максимум 10)
+    const recentArticles = await prisma.article.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: {
+        id: true,
+        title: true,
+        category: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    // Формируем единый массив активностей
+    const activities: any[] = [
+      ...recentUsers.map(u => ({
+        type: 'USER_REGISTERED',
+        entity_id: u.id,
+        title: u.username,
+        description: 'New user registered',
+        details: u.email,
+        timestamp: u.createdAt,
+      })),
+      ...recentTrades.map(t => ({
+        type: 'TRADE_CREATED',
+        entity_id: t.id,
+        title: t.title,
+        description: 'New trade ad created',
+        details: t.condition,
+        timestamp: t.createdAt,
+      })),
+      ...recentArticles.map(a => ({
+        type: 'ARTICLE_PUBLISHED',
+        entity_id: a.id,
+        title: a.title,
+        description: 'New article published',
+        details: a.category,
+        timestamp: a.createdAt,
+      })),
+    ];
+
+    // Сортируем по дате (новые сверху) и берём последние 20
+    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    res.json(activities.slice(0, 20));
   } catch (error: any) {
+    console.error('Error in /activity/recent:', error);
     res.status(500).json({ error: error.message });
   }
 });

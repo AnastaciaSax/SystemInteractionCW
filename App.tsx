@@ -4,6 +4,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import theme from './theme/theme';
 import PageTransitionLoader from './components/ui/PageTransitionLoader';
+import { AuthProvider } from './context/AuthContext'; 
 import './App.css';
 
 // Ленивая загрузка всех страниц
@@ -21,6 +22,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+         <AuthProvider>
       <Router>
         <Suspense fallback={<PageTransitionLoader />}>
           <Routes>
@@ -37,6 +39,7 @@ function App() {
           </Routes>
         </Suspense>
       </Router>
+                </AuthProvider>
     </ThemeProvider>
   );
 }
