@@ -54,6 +54,20 @@ export interface UploadImageResponse {
   url: string;
 }
 
+export interface FigurineAdmin {
+  id: string;
+  number: string;
+  name: string;
+  mold: string;
+  series: string;
+  rarity: string;
+  year: number;
+  description?: string | null;
+  imageUrl: string;
+  verified: boolean;
+  createdAt: string;
+}
+
 export const adminAPI = {
   getDashboardStats: (): Promise<DashboardStats> =>
     api.get<DashboardStats>('/admin/dashboard/stats').then(res => res.data) as Promise<DashboardStats>,
@@ -114,4 +128,25 @@ export const adminAPI = {
     api.post<UploadImageResponse>('/admin/upload/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }).then(res => res.data) as Promise<UploadImageResponse>,
+    
+// Figurines
+getFigurines: (params?: any): Promise<{ figurines: FigurineAdmin[]; total: number; pages: number }> =>
+  api.get('/admin/figurines', { params }).then(res => res.data) as Promise<{ figurines: FigurineAdmin[]; total: number; pages: number }>,
+
+getFigurineById: (id: string): Promise<FigurineAdmin> =>
+  api.get(`/admin/figurines/${id}`).then(res => res.data) as Promise<FigurineAdmin>,
+
+createFigurine: (data: any): Promise<FigurineAdmin> =>
+  api.post('/admin/figurines', data).then(res => res.data) as Promise<FigurineAdmin>,
+
+updateFigurine: (id: string, data: any): Promise<FigurineAdmin> =>
+  api.put(`/admin/figurines/${id}`, data).then(res => res.data) as Promise<FigurineAdmin>,
+
+deleteFigurine: (id: string): Promise<{ success: boolean }> =>
+  api.delete(`/admin/figurines/${id}`).then(res => res.data) as Promise<{ success: boolean }>,
+
+uploadFigurineImage: (formData: FormData): Promise<UploadImageResponse> =>
+  api.post('/admin/upload/figurine-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }).then(res => res.data) as Promise<UploadImageResponse>,
 };

@@ -558,4 +558,163 @@ router.post('/upload/image', upload.single('image'), async (req, res) => {
   }
 });
 
+// Получить список фигурок с фильтрацией и пагинацией
+router.get('/figurines', async (req, res) => {
+  try {
+    const { search, series, rarity, mold, page = 1, limit = 9 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { name: { contains: search as string, mode: 'insensitive' } },
+        { number: { contains: search as string, mode: 'insensitive' } },
+      ];
+    }
+    if (series && series !== 'ALL') where.series = series;
+    if (rarity && rarity !== 'ALL') where.rarity = rarity;
+    if (mold && mold !== 'ALL') where.mold = mold;
+
+    const [figurines, total] = await prisma.$transaction([
+      prisma.figurine.findMany({
+        where,
+        orderBy: { number: 'asc' },
+        skip,
+        take: Number(limit),
+      }),
+      prisma.figurine.count({ where }),
+    ]);
+
+    res.json({
+      figurines,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Получить одну фигурку по ID
+router.get('/figurines/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const figurine = await prisma.figurine.findUnique({ where: { id } });
+    if (!figurine) return res.status(404).json({ error: 'Figurine not found' });
+    res.json(figurine);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Создать новую фигурку
+router.post('/figurines', async (req, res) => {
+  try {
+    const { number, name, mold, series, rarity, year, description, imageUrl, verified } = req.body;
+    // Проверка уникальности номера
+    const existing = await prisma.figurine.findUnique({ where: { number } });
+    if (existing) return res.status(400).json({ error: 'Figurine with this number already exists' });
+    
+    const figurine = await prisma.figurine.create({
+      data: {
+        number,
+        name,
+        mold,
+        series,
+        rarity,
+        year: parseInt(year),
+        description,
+        imageUrl,
+        verified: verified || false,
+      },
+    });
+    res.json(figurine);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Обновить фигурку
+router.put('/figurines/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { number, name, mold, series, rarity, year, description, imageUrl, verified } = req.body;
+    
+    // Если меняется номер, проверяем уникальность
+    if (number) {
+      const existing = await prisma.figurine.findFirst({ where: { number, NOT: { id } } });
+      if (existing) return res.status(400).json({ error: 'Figurine with this number already exists' });
+    }
+    
+    const figurine = await prisma.figurine.update({
+      where: { id },
+      data: {
+        number,
+        name,
+        mold,
+        series,
+        rarity,
+        year: year ? parseInt(year) : undefined,
+        description,
+        imageUrl,
+        verified,
+      },
+    });
+    res.json(figurine);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Удалить фигурку
+router.delete('/figurines/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.figurine.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Загрузка изображения для фигурки
+const figurineStorage = multer.diskStorage({
+  destination: (req: any, file: any, cb: any) => {
+    const uploadDir = 'uploads/figurines';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req: any, file: any, cb: any) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'figurine-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadFigurine = multer({ 
+  storage: figurineStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req: any, file: any, cb: any) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+router.post('/upload/figurine-image', uploadFigurine.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const imageUrl = `/uploads/figurines/${req.file.filename}`;
+    res.json({ url: imageUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

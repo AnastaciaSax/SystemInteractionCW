@@ -13,6 +13,7 @@ import {
   People as PeopleIcon,
   Article as ArticleIcon,
   TrendingUp as TrendingUpIcon,
+    Category as CategoryIcon,
   Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import OverviewTab from './tabs/OverviewTab';
@@ -20,6 +21,7 @@ import UsersTab from './tabs/UsersTab';
 import ArticlesTab from './tabs/ArticlesTab';
 import AnalyticsTab from './tabs/AnalyticsTab';
 import ReportsTab from './tabs/ReportsTab';
+import FigurinesTab from './tabs/FigurinesTab';
 
 interface DashboardTabsProps {
   activeTab: string;
@@ -43,6 +45,7 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({
     { id: 'overview', label: 'Overview', icon: <DashboardIcon /> },
     { id: 'users', label: 'Users', icon: <PeopleIcon /> },
     { id: 'articles', label: 'Articles', icon: <ArticleIcon /> },
+        { id: 'figurines', label: 'Figurines', icon: <CategoryIcon /> }, 
     { id: 'analytics', label: 'Analytics', icon: <TrendingUpIcon /> },
     { id: 'reports', label: 'Reports', icon: <ReceiptIcon /> }
   ];
@@ -72,6 +75,8 @@ const DashboardTabs: React.FC<DashboardTabsProps> = ({
             onShowNotification={onShowNotification}
           />
         );
+              case 'figurines':
+        return <FigurinesTab onShowNotification={onShowNotification} />;
       case 'analytics':
         return (
           <AnalyticsTab 
