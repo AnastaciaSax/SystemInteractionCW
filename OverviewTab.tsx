@@ -50,12 +50,12 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ stats, recentActivity }) => {
                 <Typography>Articles Published:</Typography>
                 <Typography fontWeight="bold">{stats?.totalArticles}</Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography>Monthly Revenue:</Typography>
-                <Typography fontWeight="bold" sx={{ color: '#4CAF50' }}>
-                  ${stats?.revenue?.toLocaleString()}
-                </Typography>
-              </Box>
+<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+  <Typography>Total Figurines:</Typography>
+  <Typography fontWeight="bold" sx={{ color: '#4CAF50' }}>
+    {stats?.totalFigurines}
+  </Typography>
+</Box>
             </Box>
           </Paper>
         </Grid>

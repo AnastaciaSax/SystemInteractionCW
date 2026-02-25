@@ -22,7 +22,8 @@ import {
   BarChart as BarChartIcon,
   PieChart as PieChartIcon,
   TableChart as TableChartIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+   Category as CategoryIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -90,9 +91,15 @@ const [statsData, activityData] = await Promise.all([
     }
   }, [user, showNotification]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+useEffect(() => {
+  const interval = setInterval(() => {
+    if (user?.role === 'ADMIN') {
+      fetchDashboardData(); // перезапрашиваем данные
+    }
+  }, 5000); // 5 секунд
+
+  return () => clearInterval(interval);
+}, [fetchDashboardData, user]);
 
   const handleExport = (format: 'pdf' | 'csv', reportType: string) => {
     adminAPI.exportReport(reportType, format)
@@ -230,16 +237,16 @@ const [statsData, activityData] = await Promise.all([
                 onClick={() => setActiveTab('articles')}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <StatCard
-                title="Platform Revenue"
-                value={`$${stats.revenue.toLocaleString()}`}
-                change={stats.revenueGrowth}
-                icon={<DashboardIcon />}
-                color="#4CAF50"
-                onClick={() => setActiveTab('analytics')}
-              />
-            </Grid>
+<Grid item xs={12} sm={6} md={3}>
+  <StatCard
+    title="Total Figurines"
+    value={stats.totalFigurines}
+    change={stats.figurineGrowth}
+    icon={<CategoryIcon />}
+    color="#4CAF50"  // можно оставить зелёный или выбрать другой, например #EC2EA6
+    onClick={() => setActiveTab('figurines')}
+  />
+</Grid>
           </Grid>
         )}
 
