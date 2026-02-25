@@ -404,12 +404,14 @@ onPageChange={(page: number) => setPagination({ ...pagination, page })}
               <Typography variant="subtitle2" sx={{ mb: 1, color: '#560D30' }}>
                 Figurine Image
               </Typography>
-              <ImageUpload
-                initialImage={formData.imageUrl}
-                onImageUpload={handleImageUpload}
-                aspectRatio={1}
-                maxSize={5}
-              />
+               <Box sx={{ width: '100%', maxWidth: 355 }}> 
+    <ImageUpload
+      initialImage={formData.imageUrl}
+      onImageUpload={handleImageUpload}
+      aspectRatio={1}
+      maxSize={5}
+    />
+  </Box>
             </Box>
 
             <TextField
