@@ -39,7 +39,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ImageUpload from '../../../../components/forms/ImageUpload';
 import SearchInput from '../../../../components/ui/SearchInput';
 import FilterSelect from '../../../../components/ui/FilterSelect';
-import Pagination from '../../../../components/ui/Pagination';
+import Pagination from '../Pagination';
 
 const MOLD_OPTIONS = [
   { value: 'CAT', label: 'Cat' },
@@ -387,10 +387,9 @@ const FigurinesTab: React.FC<FigurinesTabProps> = ({ onShowNotification }) => {
       {/* Пагинация */}
       {pagination.pages > 1 && (
         <Pagination
-          currentPage={pagination.page}
-          totalPages={pagination.pages}
-          onPageChange={(page) => setPagination({ ...pagination, page })}
-          color="custom" 
+    currentPage={pagination.page}
+    totalPages={pagination.pages}
+onPageChange={(page: number) => setPagination({ ...pagination, page })}
         />
       )}
 
