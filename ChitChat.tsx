@@ -76,58 +76,51 @@ useEffect(() => {
     };
   }, []);
 
-  // Обработка pending trade offer при загрузке чатов
-  const processPendingTradeOffer = useCallback((chatsList: Chat[]) => {
+  // ========== ИСПРАВЛЕНИЕ 1: processPendingTradeOffer ==========
+  // Убрали параметр chatsData, добавили очистку сообщений.
+  const processPendingTradeOffer = useCallback(async () => {
     if (pendingTradeOfferProcessed.current) return;
     
-    const pendingTradeOfferStr = localStorage.getItem('pendingTradeOffer');
-    if (pendingTradeOfferStr && chatsList.length > 0) {
-      try {
-        const tradeAd = JSON.parse(pendingTradeOfferStr);
-        
-        // Формируем id чата так же, как на сервере
-        const sortedIds = [currentUser.id, tradeAd.userId].sort();
-        const chatId = tradeAd.id 
-          ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAd.id}`
-          : `${sortedIds[0]}-${sortedIds[1]}`;
-        
-        // Ищем чат с этим id
-        const existingChat = chatsList.find(chat => chat.id === chatId);
-        
-        if (existingChat) {
-          setSelectedChat(existingChat);
-        } else {
-          // Создаем новый чат в состоянии
-          const newChat: Chat = {
-            id: chatId,
-            otherUser: {
-              id: tradeAd.userId,
-              username: tradeAd.user?.username || 'Trade Partner',
-              profile: tradeAd.user?.profile || { avatar: '/assets/default-avatar.png' },
-              region: tradeAd.user?.region
-            },
-            tradeAd: {
-              id: tradeAd.id,
-              title: tradeAd.title,
-              status: 'ACTIVE',
-              photo: tradeAd.photo,
-              userId: tradeAd.userId
-            },
-            unreadCount: 0,
-          };
-          
-          setChats(prev => [newChat, ...prev]);
-          setSelectedChat(newChat);
-        }
-        
-        // Очищаем pending trade offer и помечаем как обработанный
-        localStorage.removeItem('pendingTradeOffer');
-        pendingTradeOfferProcessed.current = true;
-      } catch (error) {
-        console.error('Error processing pending trade offer:', error);
+    // Проверяем, авторизован ли пользователь
+    if (!currentUser.id) {
+      console.warn('No current user, skipping pending trade offer');
+      return;
+    }
+    
+    const pending = localStorage.getItem('pendingTradeOffer');
+    if (!pending) return;
+
+    try {
+      const tradeAd = JSON.parse(pending);
+      if (!tradeAd.id || !tradeAd.userId) {
+        throw new Error('Invalid pendingTradeOffer data');
       }
+      
+      // Создаём/получаем чат на сервере
+      const response = await chatAPI.ensureChat(tradeAd.id, tradeAd.userId);
+      const chat = response.data.chat;
+
+      // Очищаем сообщения перед сменой чата, чтобы не показывать старую историю
+      setMessages([]);
+
+      // Добавляем чат в список (если ещё нет)
+      setChats(prev => {
+        const exists = prev.some(c => c.id === chat.id);
+        return exists ? prev : [chat, ...prev];
+      });
+      setSelectedChat(chat);
+      localStorage.removeItem('pendingTradeOffer');
+      pendingTradeOfferProcessed.current = true;
+    } catch (error) {
+      console.error('Failed to ensure chat from pending offer:', error);
+      showNotification('Could not start chat. Please try again.', 'error');
     }
   }, [currentUser.id]);
+
+  // Вызовем обработку pending сразу после монтирования (даже если чатов ещё нет)
+  useEffect(() => {
+    processPendingTradeOffer();
+  }, [processPendingTradeOffer]);
 
   useEffect(() => {
     fetchChats();
@@ -142,8 +135,6 @@ useEffect(() => {
     fetchMessages(selectedChat.id, 1);
     
     // ПОМЕЧАЕМ СООБЩЕНИЯ КАК ПРОЧИТАННЫЕ ПРИ ВЫБОРЕ ЧАТА
-    // Это делается внутри fetchMessages для первой страницы
-    // Но для надежности можно добавить и здесь
     const markAsRead = async () => {
       try {
         await chatAPI.markMessagesAsRead(selectedChat.id);
@@ -166,9 +157,6 @@ const fetchChats = async () => {
     
     if (isMounted.current) {
       setChats(chatsData);
-      
-      // Обрабатываем pending trade offer после загрузки чатов
-      processPendingTradeOffer(chatsData);
       
       // Выбираем первый чат, если нет выбранного
       if (!selectedChat && chatsData.length > 0) {
@@ -341,49 +329,77 @@ const handleSendMessage = async (content: string) => {
   }
 };
 
-  const handleSendTradeOffer = async (file: File) => {
-    if (!selectedChat || !selectedChat.tradeAd) {
-      showNotification('No trade ad selected for offer', 'error');
-      return;
-    }
-    
-    try {
-      const formData = new FormData();
-      formData.append('tradeAdId', selectedChat.tradeAd.id);
-      formData.append('image', file);
-      
-      const response = await chatAPI.sendTradeOfferWithFile(formData);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to send trade offer');
-      }
-      
-      // Добавляем сообщение с трейд-оффером
-      if (response.data.message && isMounted.current) {
-        setMessages(prev => [...prev, response.data.message!]);
-      }
-      
-      // Обновляем статус чата на PENDING
-      updateChatStatus(selectedChat.id, 'PENDING');
-      
-      showNotification('Trade offer sent successfully', 'success');
-    } catch (error: any) {
-      console.error('Error sending trade offer:', error);
-      showNotification(error.message || 'Failed to send trade offer', 'error');
-    }
-  };
-
-const handleAcceptTrade = async (offerId: string) => {
+const handleSendTradeOffer = async (file: File) => {
+  if (!selectedChat || !selectedChat.tradeAd) {
+    showNotification('No trade ad selected for offer', 'error');
+    return;
+  }
+  
   try {
-    const response = await chatAPI.acceptTradeOffer(offerId, true);
+    const formData = new FormData();
+    formData.append('tradeAdId', selectedChat.tradeAd.id);
+    formData.append('image', file);
     
-    // Обновляем сообщения
+    const response = await chatAPI.sendTradeOfferWithFile(formData);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.error || 'Failed to send trade offer');
+    }
+    
     if (response.data.message && isMounted.current) {
       setMessages(prev => [...prev, response.data.message!]);
     }
     
-    // Обновляем статус чата на PENDING (это правильный статус для TradeAd после принятия оффера)
+    updateChatStatus(selectedChat.id, 'PENDING');
+    
+    // Обновляем selectedChat
+    setSelectedChat(prev => prev && prev.tradeAd ? {
+      ...prev,
+      tradeAd: {
+        ...prev.tradeAd,
+        status: 'PENDING'
+      }
+    } : prev);
+    
+    showNotification('Trade offer sent successfully', 'success');
+  } catch (error: any) {
+    console.error('Error sending trade offer:', error);
+    showNotification(error.message || 'Failed to send trade offer', 'error');
+  }
+};
+
+// ========== ИСПРАВЛЕНИЕ 2: handleAcceptTrade (добавлено обновление сообщения) ==========
+const handleAcceptTrade = async (offerId: string) => {
+  try {
+    const response = await chatAPI.acceptTradeOffer(offerId, true);
+    
+    // Обновляем сообщения (добавляем системное уведомление о принятии)
+    if (response.data.message && isMounted.current) {
+      setMessages(prev => [...prev, response.data.message!]);
+    }
+    
+    // Обновляем статус чата в списке чатов
     updateChatStatus(selectedChat?.id || '', 'PENDING');
+    
+    // ПРИНУДИТЕЛЬНО ОБНОВЛЯЕМ selectedChat, чтобы изменения сразу отобразились в ChatWindow
+    if (selectedChat?.id) {
+      setSelectedChat(prev => prev && prev.tradeAd ? {
+        ...prev,
+        tradeAd: {
+          ...prev.tradeAd,
+          status: 'PENDING'
+        }
+      } : prev);
+    }
+
+    // Немедленно обновляем существующее сообщение trade offer, добавляя |ACCEPTED
+    setMessages(prev => prev.map(msg => {
+      if (msg.content.startsWith('[TRADE_OFFER]') && msg.content.includes(offerId)) {
+        const updatedContent = msg.content.replace(/\|?$/, '|ACCEPTED');
+        return { ...msg, content: updatedContent };
+      }
+      return msg;
+    }));
     
     showNotification('Trade accepted!', 'success');
   } catch (error) {
@@ -392,19 +408,29 @@ const handleAcceptTrade = async (offerId: string) => {
   }
 };
 
-  const handleRejectTrade = async (offerId: string) => {
-    try {
-      await chatAPI.acceptTradeOffer(offerId, false);
-      
-      // Обновляем статус чата
-      updateChatStatus(selectedChat?.id || '', 'ACTIVE');
-      
-      showNotification('Trade offer rejected', 'info');
-    } catch (error) {
-      console.error('Error rejecting trade:', error);
-      showNotification('Failed to reject trade', 'error');
-    }
-  };
+// ========== ИСПРАВЛЕНИЕ 3: handleRejectTrade (добавлено обновление сообщения) ==========
+const handleRejectTrade = async (offerId: string) => {
+  try {
+    await chatAPI.acceptTradeOffer(offerId, false);
+    
+    // Обновляем статус чата
+    updateChatStatus(selectedChat?.id || '', 'ACTIVE');
+
+    // Обновляем сообщение trade offer, добавляя |REJECTED
+    setMessages(prev => prev.map(msg => {
+      if (msg.content.startsWith('[TRADE_OFFER]') && msg.content.includes(offerId)) {
+        const updatedContent = msg.content.replace(/\|?$/, '|REJECTED');
+        return { ...msg, content: updatedContent };
+      }
+      return msg;
+    }));
+    
+    showNotification('Trade offer rejected', 'info');
+  } catch (error) {
+    console.error('Error rejecting trade:', error);
+    showNotification('Failed to reject trade', 'error');
+  }
+};
 
   const handleSubmitComplaint = async (reason: string, details: string) => {
     if (!selectedChat) return;

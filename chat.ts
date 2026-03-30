@@ -56,9 +56,9 @@ router.get('/', async (req: any, res) => {
       // Определяем ID чата
       const otherUserId = msg.senderId === userId ? msg.receiverId : msg.senderId;
       const sortedIds = [userId, otherUserId].sort();
-      const chatId = msg.tradeId 
-        ? `${sortedIds[0]}-${sortedIds[1]}-${msg.tradeId}`
-        : `${sortedIds[0]}-${sortedIds[1]}`;
+const chatId = msg.tradeId 
+  ? `${sortedIds[0]}:${sortedIds[1]}:${msg.tradeId}`
+  : `${sortedIds[0]}:${sortedIds[1]}`;
 
       if (!chatsMap.has(chatId)) {
         // Проверяем, есть ли в сообщениях этого чата принятый трейд-оффер
@@ -392,27 +392,17 @@ router.get('/:chatId/messages', authenticate, async (req, res) => {
     console.log('Fetching messages for chatId:', chatId); // Добавьте для отладки
     
     // Разбираем chatId: userId-otherUserId-tradeId или userId-otherUserId
-    const parts = chatId.split('-');
-    if (parts.length < 2) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Invalid chat ID format. Expected: userId-otherUserId or userId-otherUserId-tradeId' 
-      });
-    }
-
-    let userId1, userId2, tradeId;
-    
-    if (parts.length === 3) {
-      [userId1, userId2, tradeId] = parts;
-    } else if (parts.length === 2) {
-      [userId1, userId2] = parts;
-      tradeId = null;
-    } else {
-      // Если частей больше 3 (например, когда tradeId содержит дефисы)
-      userId1 = parts[0];
-      userId2 = parts[1];
-      tradeId = parts.slice(2).join('-'); // Собираем оставшиеся части как tradeId
-    }
+const parts = chatId.split(':');
+if (parts.length < 2) {
+  return res.status(400).json({ error: 'Invalid chat ID format' });
+}
+let userId1, userId2, tradeId;
+if (parts.length === 3) {
+  [userId1, userId2, tradeId] = parts;
+} else {
+  [userId1, userId2] = parts;
+  tradeId = null;
+}
 
     console.log('Parsed chat parts:', { userId1, userId2, tradeId }); // Добавьте для отладки
 
@@ -477,33 +467,16 @@ router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => 
     const { tradeAdId, otherUserId } = req.params;
     const userId = req.user.userId;
     
-    // Проверяем, есть ли уже сообщения между этими пользователями по этому объявлению
     const existingMessages = await prisma.message.findMany({
       where: {
         OR: [
-          { 
-            senderId: userId, 
-            receiverId: otherUserId,
-            tradeId: tradeAdId 
-          },
-          { 
-            senderId: otherUserId, 
-            receiverId: userId,
-            tradeId: tradeAdId 
-          }
+          { senderId: userId, receiverId: otherUserId, tradeId: tradeAdId },
+          { senderId: otherUserId, receiverId: userId, tradeId: tradeAdId }
         ]
       },
       include: {
-        sender: {
-          include: {
-            profile: true
-          }
-        },
-        receiver: {
-          include: {
-            profile: true
-          }
-        },
+        sender: { include: { profile: true } },
+        receiver: { include: { profile: true } },
         trade: true
       },
       orderBy: { createdAt: 'desc' },
@@ -511,16 +484,14 @@ router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => 
     });
     
     if (existingMessages.length > 0) {
-      // Чат уже существует
       const message = existingMessages[0];
       const otherUser = message.senderId === userId ? message.receiver : message.sender;
-      
       const sortedIds = [userId, otherUserId].sort();
       const chatId = tradeAdId 
-        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAdId}`
-        : `${sortedIds[0]}-${sortedIds[1]}`;
+        ? `${sortedIds[0]}:${sortedIds[1]}:${tradeAdId}`
+        : `${sortedIds[0]}:${sortedIds[1]}`;
       
-      res.json({
+      return res.json({
         chat: {
           id: chatId,
           otherUser: {
@@ -535,15 +506,11 @@ router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => 
         existing: true
       });
     } else {
-      // Создаем новый чат (но не создаем сообщение)
       const otherUser = await prisma.user.findUnique({
         where: { id: otherUserId },
         include: { profile: true }
       });
-      
-      const tradeAd = await prisma.tradeAd.findUnique({
-        where: { id: tradeAdId }
-      });
+      const tradeAd = await prisma.tradeAd.findUnique({ where: { id: tradeAdId } });
       
       if (!otherUser || !tradeAd) {
         return res.status(404).json({ 
@@ -554,8 +521,8 @@ router.get('/ensure/:tradeAdId/:otherUserId', authenticate, async (req, res) => 
       
       const sortedIds = [userId, otherUserId].sort();
       const chatId = tradeAdId 
-        ? `${sortedIds[0]}-${sortedIds[1]}-${tradeAdId}`
-        : `${sortedIds[0]}-${sortedIds[1]}`;
+        ? `${sortedIds[0]}:${sortedIds[1]}:${tradeAdId}`
+        : `${sortedIds[0]}:${sortedIds[1]}`;
       
       res.json({
         chat: {
@@ -634,19 +601,17 @@ router.post('/:chatId/mark-read', authenticate, async (req, res) => {
     const userId = req.user.userId;
 
     // Разбираем chatId
-    const parts = chatId.split('-');
-    let userId1, userId2, tradeId;
-    
-    if (parts.length === 3) {
-      [userId1, userId2, tradeId] = parts;
-    } else if (parts.length === 2) {
-      [userId1, userId2] = parts;
-      tradeId = null;
-    } else {
-      userId1 = parts[0];
-      userId2 = parts[1];
-      tradeId = parts.slice(2).join('-');
-    }
+    const parts = chatId.split(':');
+if (parts.length < 2) {
+  return res.status(400).json({ error: 'Invalid chat ID format' });
+}
+let userId1, userId2, tradeId;
+if (parts.length === 3) {
+  [userId1, userId2, tradeId] = parts;
+} else {
+  [userId1, userId2] = parts;
+  tradeId = null;
+}
 
     // Проверяем, что текущий пользователь участвует в чате
     if (userId !== userId1 && userId !== userId2) {
