@@ -174,3 +174,8 @@ LittlestPetShop выделяется качественным дизайном �
 Управление статьями (админ)	Создание, редактирование, удаление статей, загрузка фото.	AdminDashboard (Articles)
 Управление фигурками (админ)	CRUD-операции над базой фигурок: добавление, изменение, удаление, загрузка фото.	AdminDashboard (Figurines)
 Экспорт отчетов (админ)	Выгрузка данных в PDF / CSV по пользователям, сделкам, статьям.	AdminDashboard (модалка Export)
+
+## License
+
+This project's licensed under the AGPL-3.0.
+See the [LICENSE](LICENSE) file for details.
